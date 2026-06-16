@@ -16,17 +16,60 @@ NexusCore/
 └── agents/       Band remote agents (Master/Risk/...) — real multi-agent collaboration
 ```
 
-## Run the demo (backend + frontend, one command)
+## Run the Demo
 
+You can run NexusCore in two modes depending on whether you are developing features or previewing the full application locally.
+
+### 1. Development Mode (Recommended)
+
+This mode runs the backend swarm using the unified launcher, and the frontend in Vite development mode with hot reloading.
+
+#### Step A: Backend & Agents Swarm
+Install the combined dependencies in a virtual environment at the root of the project and run the launcher:
 ```bash
-cd backend
+# Create and activate a virtual environment at the root
 python -m venv .venv
-.venv\Scripts\activate          # Windows  (use: source .venv/bin/activate on mac/linux)
-pip install -r requirements.txt
-python main.py
-```
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
-Open <http://localhost:8000>.
+# Install combined backend and agent dependencies
+pip install -r requirements.txt
+
+# Run the launcher (starts FastAPI on port 8000 and launches the 4 agents)
+python start.py
+```
+*(Note: Agent credentials/keys must be configured in environment variables or via `agents/agent_config.yaml` to run the agent subprocesses.)*
+
+#### Step B: Frontend Dashboard
+In a separate terminal, install the frontend Node dependencies and run the Vite development server:
+```bash
+cd frontend
+npm install
+npm run dev
+```
+Open <http://localhost:5173>. The dev server automatically connects to the backend running at `http://localhost:8000`.
+
+---
+
+### 2. Production Preview Mode (Single Origin)
+
+In this mode, the frontend is built into static assets and served directly by the FastAPI backend on port `8000`.
+
+1. **Build the frontend**:
+   ```bash
+   cd frontend
+   npm install
+   npm run build
+   ```
+2. **Start the backend server**:
+   From the root directory, activate your Python virtual environment and run:
+   ```bash
+   python start.py
+   ```
+3. Open <http://localhost:8000> in your browser.
+
+---
+
+### Demo Flow
 
 1. Type a feature → "Plan it" (Phase 1 input)
 2. Watch the Band room feed update live
