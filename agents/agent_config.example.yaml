@@ -1,0 +1,19 @@
+# Copy to agent_config.yaml and fill in. Add agent_config.yaml to .gitignore.
+# Each agent's Band API key + UUID come from band.ai -> Agents -> New Agent
+# (type: External Agent). The key is shown ONCE on creation.
+
+master_agent:
+  agent_id: "<master-agent-uuid>"
+  api_key: "<master-band-api-key>"
+
+risk_agent:
+  agent_id: "<risk-agent-uuid>"
+  api_key: "<risk-band-api-key>"
+
+compliance_agent:
+  agent_id: "<compliance-agent-uuid>"
+  api_key: "<compliance-band-api-key>"
+
+proposer_agent:
+  agent_id: "<proposer-agent-uuid>"
+  api_key: "<proposer-band-api-key>"

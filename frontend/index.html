@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NexusCore — Governance Dashboard</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <span class="logo">◆</span>
+    <div>
+      <h1>NexusCore</h1>
+      <p>The brain above your AI agents</p>
+    </div>
+  </div>
+  <div class="status">
+    <span id="dot" class="dot off"></span><span id="conn">connecting…</span>
+    <a id="roomlink" href="#" target="_blank"
+       style="color:var(--accent2);margin-left:16px;font-size:12px;text-decoration:none"></a>
+  </div>
+</header>
+
+<main>
+  <!-- LEFT: input + live room feed -->
+  <section class="col feed-col">
+    <div class="card">
+      <h2>Run a request <span class="muted">· drives the real agents</span></h2>
+      <p class="muted small">Sends your request to the live Band room. The 4 agents
+        collaborate and the result streams into the audit trail below.</p>
+      <div class="row">
+        <input id="feature" type="text"
+          placeholder="e.g. clean up old accounts — may require DROP TABLE users">
+        <button id="band" class="primary" style="width:auto"
+          title="Send this request to the live Band room">▶ Run on Band</button>
+      </div>
+    </div>
+
+    <div class="card grow">
+      <h2>Band Room <span class="muted">· live audit trail (real agents)</span></h2>
+      <div id="feed" class="feed"></div>
+    </div>
+  </section>
+
+  <!-- RIGHT: the emergency brake -->
+  <section class="col brake-col">
+    <div class="card">
+      <h2>🛑 Emergency Brake <span class="muted">· local concept demo</span></h2>
+      <p class="muted small">Illustrates the gate: a dangerous action is HELD until
+        the Master decides ALLOW/BLOCK. Self-contained (no Band) — use it to explain
+        the concept; the panel above runs the same flow on real agents.</p>
+      <button id="demo" class="ghost">Simulate dangerous action</button>
+    </div>
+    <div id="actions" class="actions"></div>
+  </section>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

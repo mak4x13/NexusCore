@@ -1,0 +1,4 @@
+# Python 3.11+ required (Band SDK). Use uv: uv venv --python 3.12 .venv
+band-sdk[langgraph]
+langchain-openai
+python-dotenv
