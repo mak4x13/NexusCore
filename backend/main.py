@@ -429,7 +429,7 @@ async def ws(ws: WebSocket) -> None:
 
 # Serve the frontend (so one `uvicorn` command runs the whole demo).
 # Mounted last so it does not shadow /api routes.
-_FRONTEND = os.path.join(os.path.dirname(__file__), "..", "frontend")
+_FRONTEND = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
 if os.path.isdir(_FRONTEND):
     app.mount("/", StaticFiles(directory=_FRONTEND, html=True), name="frontend")
 
