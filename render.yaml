@@ -1,0 +1,39 @@
+# Render blueprint — one web service runs backend + 4 Band agents (start.py).
+# Secrets are entered in the Render dashboard (sync: false), never in git.
+services:
+  - type: web
+    name: nexuscore
+    runtime: python
+    plan: free            # 512MB RAM — upgrade to "starter" if it OOMs
+    buildCommand: pip install -r requirements.txt
+    startCommand: python start.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.7
+      # --- LLM brains ---
+      - key: AIML_API_KEY
+        sync: false
+      - key: FEATHERLESS_API_KEY
+        sync: false
+      # --- Band agent credentials (from band.ai) ---
+      - key: BAND_MASTER_UUID
+        sync: false
+      - key: BAND_MASTER_KEY
+        sync: false
+      - key: BAND_RISK_UUID
+        sync: false
+      - key: BAND_RISK_KEY
+        sync: false
+      - key: BAND_COMPLIANCE_UUID
+        sync: false
+      - key: BAND_COMPLIANCE_KEY
+        sync: false
+      - key: BAND_PROPOSER_UUID
+        sync: false
+      - key: BAND_PROPOSER_KEY
+        sync: false
+      # --- Demo room + optional write protection ---
+      - key: BAND_ROOM
+        sync: false
+      - key: DEMO_TOKEN
+        sync: false
