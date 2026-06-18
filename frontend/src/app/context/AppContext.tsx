@@ -9,6 +9,7 @@ import {
   triggerBand,
   decideAction,
   getBandStatus,
+  getBandMessages,
   WS_URL,
   type ApiMessage,
   type ApiAction,
@@ -622,6 +623,41 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     return () => {
       wsRef.current?.close();
     };
+  }, []);
+
+  // ── Poll the REAL Band room audit (live 9-agent flow) ─────────────────────
+  // The agents (Proposer → 6 reviewers → Master DECISION) post to the Band room,
+  // not the local /api/messages feed. Mirror that real transcript into the audit
+  // log so the dashboard shows the actual multi-agent collaboration.
+  useEffect(() => {
+    let active = true;
+    async function pollBand() {
+      try {
+        const msgs = await getBandMessages();
+        if (!active) return;
+        setAuditLogs(prev => {
+          const seen = new Set(prev.map(l => l.id));
+          const fresh = msgs
+            .filter(m => !seen.has(m.id))
+            .map(m => ({
+              id: m.id,
+              timestamp: m.created_at
+                ? new Date(m.created_at).toISOString().replace('T', ' ').substring(0, 16)
+                : '',
+              action: m.content.substring(0, 60),
+              actor: m.author,
+              category: (m.role === 'master' || m.role === 'compliance'
+                ? 'workflow' : 'security') as AuditLog['category'],
+              details: m.content,
+            }));
+          // oldest-first so chronological order is preserved when prepending
+          return fresh.length ? [...fresh.reverse(), ...prev] : prev;
+        });
+      } catch { /* backend offline or room unreachable */ }
+    }
+    pollBand();
+    const t = setInterval(pollBand, 3000);
+    return () => { active = false; clearInterval(t); };
   }, []);
 
   // Update active agents metric
