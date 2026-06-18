@@ -1,17 +1,12 @@
 import { motion } from 'motion/react';
 import { Clock } from 'lucide-react';
-
-const events = [
-  { time: '10:21', event: 'Architecture Created', status: 'complete' },
-  { time: '10:22', event: 'Conflict Detected', status: 'complete' },
-  { time: '10:23', event: 'Architecture Revised', status: 'complete' },
-  { time: '10:25', event: 'Approved', status: 'complete' },
-  { time: '10:28', event: 'Code Generated', status: 'complete' },
-  { time: '10:31', event: 'Security Review', status: 'active' },
-  { time: '10:35', event: 'Compliance Approved', status: 'pending' },
-];
+import { useApp } from '../context/AppContext';
 
 export function GovernanceTimeline() {
+  const { auditLogs } = useApp();
+  // Most recent real audit entries from the Band room (newest first).
+  const events = auditLogs.slice(0, 8);
+
   return (
     <motion.div
       className="bg-white border border-black/10 rounded-xl p-8"
@@ -21,98 +16,66 @@ export function GovernanceTimeline() {
     >
       <div className="mb-8">
         <h3 className="text-[20px] font-[600] mb-1">Governance Timeline</h3>
-        <p className="text-[13px] text-black/60">Complete audit trail of all decisions</p>
+        <p className="text-[13px] text-black/60">Live audit trail from the Band room</p>
       </div>
 
-      <div className="space-y-0">
-        {events.map((item, index) => {
-          const isComplete = item.status === 'complete';
-          const isActive = item.status === 'active';
-          const isPending = item.status === 'pending';
+      {events.length === 0 ? (
+        <p className="text-[13px] text-black/40">No activity yet — launch a workflow to see the agents collaborate.</p>
+      ) : (
+        <div className="space-y-0">
+          {events.map((item, index) => {
+            const time = (item.timestamp || '').slice(11, 16) || '—';
+            const isDecision = (item.details || '').includes('DECISION:');
+            const isBlock = isDecision && /BLOCK/i.test(item.details);
 
-          return (
-            <div key={index} className="relative">
-              {/* Connecting Line */}
-              {index < events.length - 1 && (
-                <div className="absolute left-[19px] top-10 w-0.5 h-12">
-                  <div className={`w-full h-full ${isComplete ? 'bg-black/20' : 'bg-black/10'}`} />
-                </div>
-              )}
+            return (
+              <div key={item.id} className="relative">
+                {index < events.length - 1 && (
+                  <div className="absolute left-[19px] top-10 w-0.5 h-12">
+                    <div className="w-full h-full bg-black/10" />
+                  </div>
+                )}
 
-              {/* Event */}
-              <motion.div
-                className="relative flex items-start gap-4 pb-3"
-                initial={{ x: -20, opacity: 0 }}
-                animate={{ x: 0, opacity: 1 }}
-                transition={{ duration: 0.4, delay: 0.7 + index * 0.05 }}
-              >
-                {/* Time Indicator */}
-                <div className="flex items-center gap-3 min-w-[100px]">
-                  <Clock className="w-4 h-4 text-black/40" strokeWidth={1.5} />
-                  <span className="text-[13px] font-[500] text-black/60">{item.time}</span>
-                </div>
+                <motion.div
+                  className="relative flex items-start gap-4 pb-3"
+                  initial={{ x: -20, opacity: 0 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  transition={{ duration: 0.4, delay: index * 0.04 }}
+                >
+                  <div className="flex items-center gap-3 min-w-[100px]">
+                    <Clock className="w-4 h-4 text-black/40" strokeWidth={1.5} />
+                    <span className="text-[13px] font-[500] text-black/60">{time}</span>
+                  </div>
 
-                {/* Node */}
-                <div className="relative mt-0.5">
-                  <motion.div
-                    className={`
-                      w-10 h-10 rounded-full flex items-center justify-center border
-                      ${isComplete ? 'bg-black border-black' : ''}
-                      ${isActive ? 'bg-black border-black' : ''}
-                      ${isPending ? 'bg-white border-black/20' : ''}
-                    `}
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ duration: 0.3, delay: 0.7 + index * 0.05 }}
-                  >
+                  <div className="relative mt-0.5">
                     <div
                       className={`
-                        w-2 h-2 rounded-full
-                        ${isComplete ? 'bg-white' : ''}
-                        ${isActive ? 'bg-white' : ''}
-                        ${isPending ? 'bg-black/20' : ''}
+                        w-10 h-10 rounded-full flex items-center justify-center border
+                        ${isBlock ? 'bg-red-500 border-red-500'
+                          : isDecision ? 'bg-green-600 border-green-600'
+                          : 'bg-black border-black'}
                       `}
-                    />
-                  </motion.div>
+                    >
+                      <div className="w-2 h-2 rounded-full bg-white" />
+                    </div>
+                  </div>
 
-                  {/* Pulse for active */}
-                  {isActive && (
-                    <motion.div
-                      className="absolute inset-0 rounded-full border-2 border-black"
-                      initial={{ scale: 1, opacity: 0.5 }}
-                      animate={{ scale: 1.3, opacity: 0 }}
-                      transition={{
-                        duration: 1.5,
-                        repeat: Infinity,
-                        ease: "easeOut"
-                      }}
-                    />
+                  <div className="flex-1 pt-1.5">
+                    <div className="text-[14px] font-[600]">{item.actor}</div>
+                    <div className="text-[12px] text-black/60 mt-0.5 line-clamp-2">{item.action}</div>
+                  </div>
+
+                  {isDecision && (
+                    <div className={`text-[11px] font-[600] px-2 py-1 rounded-full mt-1 ${isBlock ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
+                      {isBlock ? 'BLOCK' : 'ALLOW'}
+                    </div>
                   )}
-                </div>
-
-                {/* Event Details */}
-                <div className="flex-1 pt-1.5">
-                  <div className="text-[14px] font-[600]">{item.event}</div>
-                  {isActive && (
-                    <div className="text-[12px] text-black/60 mt-0.5">In progress...</div>
-                  )}
-                </div>
-
-                {/* Status Badge */}
-                {isComplete && (
-                  <motion.div
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    className="text-[11px] font-[600] px-2 py-1 bg-[#f7f7f7] rounded-full mt-1"
-                  >
-                    Complete
-                  </motion.div>
-                )}
-              </motion.div>
-            </div>
-          );
-        })}
-      </div>
+                </motion.div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </motion.div>
   );
 }

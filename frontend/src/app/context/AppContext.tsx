@@ -653,6 +653,34 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           // oldest-first so chronological order is preserved when prepending
           return fresh.length ? [...fresh.reverse(), ...prev] : prev;
         });
+
+        // Drive the live feature stepper from the REAL Band flow + stop the
+        // spinner the moment the Master posts a DECISION.
+        const up = msgs.map(m => (m.content || '').toUpperCase());
+        const has = (mk: string) => up.some(c => c.includes(mk));
+        const stageMarkers = ['ENGINEER_PLAN', 'PROPOSAL', 'RISK:', 'COMPLIANCE:',
+          'SECURITY:', 'TEST:', 'INFRA', 'ROLLBACK_AUDIT', 'DECISION:'];
+        let furthest = -1;
+        stageMarkers.forEach((mk, i) => { if (has(mk)) furthest = i > furthest ? i : furthest; });
+        const decisionMsg = msgs.find(m => (m.content || '').includes('DECISION:'));
+        if (furthest < 0 && !decisionMsg) return;
+
+        setFeatures(prev => {
+          const target = prev.find(f => f.status === 'running' || f.status === 'awaiting_approval');
+          if (!target) return prev;
+          const decided = !!decisionMsg;
+          const allow = decided && /DECISION:\s*ALLOW/i.test(decisionMsg!.content);
+          const newStages = target.stages.map((s, i) => {
+            if (decided || i <= furthest) return { ...s, status: 'complete' as const };
+            if (i === furthest + 1) return { ...s, status: 'active' as const };
+            return { ...s, status: 'pending' as const };
+          });
+          const status: Feature['status'] = decided ? (allow ? 'completed' : 'failed') : 'running';
+          const idx = decided ? newStages.length - 1 : Math.min(furthest + 1, newStages.length - 1);
+          return prev.map(f => f.id === target.id
+            ? { ...f, stages: newStages, currentStageIndex: idx, status }
+            : f);
+        });
       } catch { /* backend offline or room unreachable */ }
     }
     pollBand();

@@ -12,6 +12,7 @@ from langgraph.checkpoint.memory import InMemorySaver
 from band import Agent
 from band.adapters.langgraph import LangGraphAdapter
 from band.config import load_agent_config
+from respond_once import RespondOncePreprocessor
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("security")
@@ -46,7 +47,8 @@ async def main() -> None:
         checkpointer=InMemorySaver(),
         custom_section=SYSTEM,
     )
-    agent = Agent.create(adapter=adapter, agent_id=agent_id, api_key=api_key)
+    agent = Agent.create(adapter=adapter, agent_id=agent_id, api_key=api_key,
+                         preprocessor=RespondOncePreprocessor())
 
     logger.info("Security Agent live in Band room. Ctrl+C to stop.")
     await agent.run()

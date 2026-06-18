@@ -65,8 +65,8 @@ def main() -> None:
     if "--trigger" in sys.argv:
         extra = [a for a in sys.argv[1:] if a != "--trigger"]
         text = extra[0] if extra else DEFAULT_REQUEST
-        print("Agents joining... sending request in 8s")
-        time.sleep(8)
+        print("Agents joining... sending request in 15s")
+        time.sleep(15)
         target = "engineer_agent" if "engineer_agent" in ids else "proposer_agent"
         target_name = "Engineer/Builder Agent" if target == "engineer_agent" else "Proposer Agent"
         body = {"message": {"content": f"@{target_name} {text}",

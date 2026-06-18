@@ -17,13 +17,19 @@ from langgraph.checkpoint.memory import InMemorySaver
 from band import Agent
 from band.adapters.langgraph import LangGraphAdapter
 from band.config import load_agent_config
+from respond_once import RespondOncePreprocessor
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("engineer")
 
-SYSTEM = """You are the Engineer/Builder Agent in NexusCore. When given a task,
-post EXACTLY ONE short code plan, patch summary, or command plan in this format,
-then STOP:
+SYSTEM = """You are the Engineer/Builder Agent in NexusCore.
+
+CRITICAL: You reply ONLY by sending a message to the room using your send-message
+tool. Never answer with plain text or stay silent — if you do not send a message,
+you did nothing. Always send exactly one message when you are mentioned.
+
+When given a task, send EXACTLY ONE short code plan, patch summary, or command plan
+in this format, then STOP:
 
   ENGINEER_PLAN: <short plan or patch summary>. @Proposer Agent @Master Agent
 
@@ -49,7 +55,8 @@ async def main() -> None:
         checkpointer=InMemorySaver(),
         custom_section=SYSTEM,
     )
-    agent = Agent.create(adapter=adapter, agent_id=agent_id, api_key=api_key)
+    agent = Agent.create(adapter=adapter, agent_id=agent_id, api_key=api_key,
+                         preprocessor=RespondOncePreprocessor())
 
     logger.info("Engineer/Builder Agent live in Band room. Ctrl+C to stop.")
     await agent.run()

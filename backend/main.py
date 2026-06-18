@@ -16,6 +16,7 @@ This backend exposes:
 
 from __future__ import annotations
 
+import asyncio
 import os
 import uuid
 from datetime import datetime, timezone
@@ -345,6 +346,40 @@ class BandTrigger(BaseModel):
     text: str
     mention: List[str] = Field(default_factory=lambda: list(_DEFAULT_MENTIONS))
     sender: str = "master_agent"   # Master dispatches the work
+    fresh: bool = True             # create a clean room per run (recommended)
+
+
+async def _create_run_room(cfg: dict) -> str:
+    """Create a fresh Band room and add every configured agent.
+
+    A clean room per run means each prompt gets a full Proposer -> reviewers ->
+    Master DECISION cycle, and the once-per-room guard never blocks a new prompt.
+    """
+    master = cfg.get("master_agent") or {}
+    key = master.get("api_key")
+    if not key:
+        raise HTTPException(503, "master_agent api_key missing")
+    headers = {"X-API-Key": key, "Content-Type": "application/json"}
+    async with httpx.AsyncClient(timeout=30) as client:
+        r = await client.post(f"{BAND_BASE}/agent/chats", headers=headers,
+                              json={"chat": {}})
+        if r.status_code not in (200, 201):
+            raise HTTPException(502, f"could not create Band room ({r.status_code})")
+        room = r.json()["data"]["id"]
+        for name in _SUPPORTED_AGENTS:
+            if name == "master_agent":
+                continue  # creator is already a participant
+            entry = cfg.get(name)
+            if not isinstance(entry, dict) or not entry.get("agent_id"):
+                continue
+            await client.post(
+                f"{BAND_BASE}/agent/chats/{room}/participants", headers=headers,
+                json={"participant": {"participant_id": entry["agent_id"]}})
+    try:
+        open(os.path.join(_AGENTS_DIR, "room.txt"), "w").write(room)
+    except OSError:
+        pass
+    return room
 
 
 @app.get("/api/band/status")
@@ -370,7 +405,12 @@ async def band_status() -> dict:
 
 @app.post("/api/band/trigger", dependencies=[Depends(require_demo_token)])
 async def band_trigger(t: BandTrigger) -> dict:
-    """Inject a request into the live Band room; agents respond there."""
+    """Inject a request into the live Band room; agents respond there.
+
+    By default each run gets a FRESH room (clean cascade, no stale duplicates).
+    The trigger mentions only the entry agent (Engineer -> Proposer -> reviewers
+    -> Master), so the flow stays readable instead of every agent firing at once.
+    """
     cfg = _load_band_cfg()
     if t.sender not in cfg or not isinstance(cfg.get(t.sender), dict):
         raise HTTPException(400, f"unknown sender: {t.sender}")
@@ -378,36 +418,34 @@ async def band_trigger(t: BandTrigger) -> dict:
     if not key:
         raise HTTPException(503, f"sender {t.sender} has no Band api_key configured")
 
-    unknown = [m for m in t.mention if m not in _NAME_MAP]
-    if unknown:
-        raise HTTPException(400, f"unknown mention(s): {', '.join(unknown)}")
-    # cannot @mention yourself — drop the sender from the mention list
-    mentions = []
-    mentioned_roles = []
-    for m in t.mention:
-        agent_name = _NAME_MAP[m]
-        if agent_name == t.sender:
-            continue
-        entry = cfg.get(agent_name)
-        if not isinstance(entry, dict) or not entry.get("agent_id"):
-            continue
-        mentions.append({"id": entry["agent_id"]})
-        mentioned_roles.append(m)
-    if not mentions:
-        raise HTTPException(400, "no valid agents to mention")
+    # Entry agent: Engineer if configured, else Proposer. It cascades to the rest.
+    entry = "engineer_agent" if isinstance(cfg.get("engineer_agent"), dict) \
+        and cfg["engineer_agent"].get("agent_id") else "proposer_agent"
+    if entry == t.sender or not isinstance(cfg.get(entry), dict) \
+            or not cfg[entry].get("agent_id"):
+        raise HTTPException(503, f"entry agent {entry} not configured")
 
-    body = {"message": {"content": t.text, "mentions": mentions}}
+    if t.fresh:
+        room = await _create_run_room(cfg)
+        await asyncio.sleep(10)  # let the running agents join the new room
+    else:
+        room = _current_room()
+
+    entry_display = _AGENT_DISPLAY_NAMES.get(entry, "Engineer/Builder Agent")
+    body = {"message": {
+        "content": f"@{entry_display} {t.text}",
+        "mentions": [{"id": cfg[entry]["agent_id"]}],
+    }}
     async with httpx.AsyncClient(timeout=30) as client:
         r = await client.post(
-            f"{BAND_BASE}/agent/chats/{_current_room()}/messages",
+            f"{BAND_BASE}/agent/chats/{room}/messages",
             headers={"X-API-Key": key, "Content-Type": "application/json"},
             json=body,
         )
     if r.status_code != 201:
         raise HTTPException(502, f"Band rejected the message ({r.status_code})")
-    # mirror into the local feed so the dashboard shows what was triggered
     await _post("Engineer", "human", f"→ Band room: {t.text}")
-    return {"sent": True, "mentioned": mentioned_roles}
+    return {"sent": True, "room": room, "entry": entry}
 
 
 @app.get("/api/band/room")
