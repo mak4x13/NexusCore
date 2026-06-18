@@ -69,6 +69,12 @@ class ActionStatus(str, Enum):
     BLOCKED = "BLOCKED"  # Master refused -> never executed
 
 
+class RiskTier(str, Enum):
+    LOW = "LOW"
+    MEDIUM = "MEDIUM"
+    CRITICAL = "CRITICAL"
+
+
 class FeatureRequest(BaseModel):
     text: str
 
@@ -94,6 +100,16 @@ class ProposeAction(BaseModel):
     agent: str           # who wants to do the dangerous thing
     action: str          # e.g. "DROP DATABASE users"
     risk: str            # why it is dangerous
+    estimated_records: Optional[int] = None
+    environment: str = "unknown"
+
+
+class InterceptCommand(BaseModel):
+    feature_id: Optional[str] = None
+    actor: str = "Runtime Interceptor"
+    command: str
+    environment: str = "production"
+    estimated_records: Optional[int] = None
 
 
 class Action(BaseModel):
@@ -102,6 +118,10 @@ class Action(BaseModel):
     agent: str
     action: str
     risk: str
+    risk_tier: RiskTier
+    human_confirmation_required: bool = False
+    human_confirmed: bool = False
+    interceptor_reason: str = ""
     status: ActionStatus
     decided_by: Optional[str] = None
     reason: Optional[str] = None
@@ -113,6 +133,7 @@ class Decision(BaseModel):
     allow: bool
     decided_by: str = "Master Agent"
     reason: str = ""
+    human_confirmed: bool = False
 
 
 # --------------------------------------------------------------------------- #
@@ -163,6 +184,81 @@ async def _post(author: str, role: str, content: str,
     return msg
 
 
+def classify_action(action: str, risk: str = "",
+                    estimated_records: Optional[int] = None,
+                    environment: str = "unknown") -> tuple[RiskTier, str]:
+    """Small rule-based emergency-brake classifier for the hackathon demo."""
+    text = f"{action} {risk} {environment}".lower()
+
+    destructive_patterns = [
+        "drop database", "drop table", "truncate", "rm -rf", "rmdir /s",
+        "delete from", "wipe", "destroy", "rotate secret", "revoke all",
+        "disable auth",
+    ]
+    if any(p in text for p in destructive_patterns):
+        return RiskTier.CRITICAL, "Matched critical destructive/production-impact pattern."
+    if estimated_records is not None and estimated_records >= 10000:
+        return RiskTier.CRITICAL, "Estimated record impact exceeds 10,000 rows."
+
+    medium_patterns = [
+        "update ", "insert ", "patch ", "post ", "deploy", "migration",
+        "write", "send email", "permission", "staging", "database",
+    ]
+    write_or_deploy_patterns = [
+        "update ", "insert ", "patch ", "post ", "deploy", "migration",
+        "write", "send email", "permission",
+    ]
+    production_like = (
+        ("production" in text or "prod" in text or environment.lower() in {"production", "prod"})
+        and "staging" not in text
+    )
+    if production_like and any(p in text for p in write_or_deploy_patterns):
+        return RiskTier.CRITICAL, "Production-impacting write/deploy requires critical review."
+    if any(p in text for p in medium_patterns):
+        return RiskTier.MEDIUM, "Matched write/deploy/review-required pattern."
+    if estimated_records is not None and estimated_records > 0:
+        return RiskTier.MEDIUM, "Touches records and needs governance review."
+
+    return RiskTier.LOW, "Read-only or low-impact action."
+
+
+async def _intercept_action(feature_id: Optional[str], agent: str, action_text: str,
+                            risk: str, estimated_records: Optional[int] = None,
+                            environment: str = "unknown") -> Action:
+    tier, reason = classify_action(action_text, risk, estimated_records, environment)
+    now = _now()
+    status = ActionStatus.ALLOWED if tier == RiskTier.LOW else ActionStatus.HELD
+    action = Action(
+        id=_id("act"), feature_id=feature_id, agent=agent,
+        action=action_text, risk=risk, risk_tier=tier,
+        human_confirmation_required=tier == RiskTier.CRITICAL,
+        human_confirmed=False, interceptor_reason=reason, status=status,
+        decided_by="Action Interceptor" if status == ActionStatus.ALLOWED else None,
+        reason="Auto-allowed low-risk action." if status == ActionStatus.ALLOWED else None,
+        created_at=now,
+        decided_at=now if status == ActionStatus.ALLOWED else None,
+    )
+    ACTIONS.append(action)
+
+    await _post("Action Interceptor", "risk",
+                f"INTERCEPTED: {tier.value} tier. {reason} Action: {action_text}",
+                feature_id)
+    if status == ActionStatus.HELD:
+        confirm = " Human confirmation required before ALLOW." \
+            if tier == RiskTier.CRITICAL else ""
+        await _post(agent, "proposer",
+                    f"REQUESTING ACTION: {action_text}", feature_id)
+        await _post("Risk Agent", "risk",
+                    f"HELD ({tier.value}). Risk: {risk}.{confirm} Awaiting Master decision.",
+                    feature_id)
+    else:
+        await _post("Master Agent", "master",
+                    f"DECISION: ALLOW on '{action_text}'. Low-risk action auto-allowed.",
+                    feature_id)
+    await hub.broadcast("action", action.model_dump())
+    return action
+
+
 # --------------------------------------------------------------------------- #
 # Endpoints
 # --------------------------------------------------------------------------- #
@@ -203,18 +299,25 @@ async def add_message(msg: Message) -> Message:
           dependencies=[Depends(require_demo_token)])
 async def propose_action(p: ProposeAction) -> Action:
     """An agent wants to do something dangerous. HOLD it. Do NOT execute."""
-    action = Action(
-        id=_id("act"), feature_id=p.feature_id, agent=p.agent,
-        action=p.action, risk=p.risk, status=ActionStatus.HELD,
-        created_at=_now(),
+    return await _intercept_action(
+        p.feature_id, p.agent, p.action, p.risk,
+        p.estimated_records, p.environment,
     )
-    ACTIONS.append(action)
-    await _post(p.agent, "proposer",
-                f"REQUESTING DANGEROUS ACTION: {p.action}", p.feature_id)
-    await _post("Risk Agent", "risk",
-                f"HELD. Risk: {p.risk}. Awaiting Master decision.", p.feature_id)
-    await hub.broadcast("action", action.model_dump())
-    return action
+
+
+@app.post("/api/interceptor/commands", response_model=Action,
+          dependencies=[Depends(require_demo_token)])
+async def intercept_command(c: InterceptCommand) -> Action:
+    """Demo-safe runtime wrapper: classify and hold/allow before execution.
+
+    This endpoint intentionally does not execute the command. It proves the
+    pre-execution governance path without risking the local machine or a DB.
+    """
+    return await _intercept_action(
+        c.feature_id, c.actor, c.command,
+        "Runtime command submitted for pre-execution safety review.",
+        c.estimated_records, c.environment,
+    )
 
 
 @app.get("/api/actions", response_model=List[Action])
@@ -230,15 +333,23 @@ async def decide_action(action_id: str, d: Decision) -> Action:
         raise HTTPException(404, "action not found")
     if action.status != ActionStatus.HELD:
         raise HTTPException(409, f"already {action.status}")
+    if d.allow and action.human_confirmation_required and not d.human_confirmed:
+        raise HTTPException(
+            409,
+            "critical action requires human_confirmed=true before ALLOW",
+        )
 
     action.status = ActionStatus.ALLOWED if d.allow else ActionStatus.BLOCKED
     action.decided_by = d.decided_by
     action.reason = d.reason
+    action.human_confirmed = d.human_confirmed
     action.decided_at = _now()
 
     verdict = "ALLOW" if d.allow else "BLOCK"
+    confirmation = " Human confirmation recorded." \
+        if action.human_confirmed else ""
     await _post(d.decided_by, "master",
-                f"DECISION: {verdict} on '{action.action}'. {d.reason}".strip(),
+                f"DECISION: {verdict} on '{action.action}'. {d.reason}{confirmation}".strip(),
                 action.feature_id)
     await hub.broadcast("action", action.model_dump())
     return action

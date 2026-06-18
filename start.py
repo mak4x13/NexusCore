@@ -116,11 +116,15 @@ def main() -> None:
 
     port = os.environ.get("PORT", "8000")
     os.chdir(os.path.join(ROOT, "backend"))
-    # exec uvicorn in the foreground so Render tracks the web process
-    os.execvp(sys.executable, [
+    uvicorn_cmd = [
         sys.executable, "-m", "uvicorn", "main:app",
         "--host", "0.0.0.0", "--port", port,
-    ])
+    ]
+    if os.name == "nt":
+        subprocess.run(uvicorn_cmd, check=True)
+    else:
+        # exec uvicorn in the foreground so Render tracks the web process
+        os.execvp(sys.executable, uvicorn_cmd)
 
 
 if __name__ == "__main__":

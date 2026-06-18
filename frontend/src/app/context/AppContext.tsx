@@ -114,6 +114,7 @@ interface AppContextType {
   isScanning: boolean;
   activeFeatureId: string | null;
   setActiveFeatureId: (id: string | null) => void;
+  addAuditLog: (log: AuditLog) => void;
 }
 
 const defaultStages: FeatureStage[] = [
@@ -419,6 +420,13 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [bandConfigured, setBandConfigured] = useState(false);
   const [bandRoom, setBandRoom] = useState<string | null>(null);
 
+  const addAuditLog = (log: AuditLog) => {
+    setAuditLogs(prev => {
+      if (prev.find(existing => existing.id === log.id)) return prev;
+      return [log, ...prev];
+    });
+  };
+
   // WebSocket ref to keep connection alive
   const wsRef = useRef<WebSocket | null>(null);
 
@@ -593,6 +601,28 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
               // Action status changed (HELD / ALLOWED / BLOCKED)
               const action = data as ApiAction;
               const featStatus = actionStatusToFeatureStatus(action.status);
+              const actionLog: AuditLog = {
+                id: `action-${action.id}-${action.status}`,
+                timestamp: new Date().toISOString().replace('T', ' ').substring(0, 16),
+                action: action.status === 'HELD'
+                  ? `Action Held (${action.risk_tier})`
+                  : action.status === 'ALLOWED'
+                  ? 'Action Allowed'
+                  : 'Action Blocked',
+                actor: action.status === 'HELD'
+                  ? action.agent
+                  : action.decided_by || 'Master Agent',
+                category: action.status === 'HELD' || action.risk_tier === 'CRITICAL'
+                  ? 'security'
+                  : 'approval',
+                details: action.status === 'HELD'
+                  ? `${action.action} — ${action.interceptor_reason || action.risk}`
+                  : `${action.action} — ${action.reason || ''}`,
+              };
+              setAuditLogs(prev => {
+                if (prev.find(l => l.id === actionLog.id)) return prev;
+                return [actionLog, ...prev];
+              });
 
               setFeatures(prev => prev.map(f => {
                 if (f.id !== action.feature_id && f.actionId !== action.id) return f;
@@ -1074,7 +1104,8 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         togglePolicy,
         isScanning,
         activeFeatureId,
-        setActiveFeatureId
+        setActiveFeatureId,
+        addAuditLog
       }}
     >
       {children}

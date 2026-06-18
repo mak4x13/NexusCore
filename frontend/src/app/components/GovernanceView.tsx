@@ -5,6 +5,7 @@ import {
   FileCheck, Shield, Lock, UserCheck, Search, Clock, 
   Check, X, ChevronRight, AlertTriangle, ShieldCheck, Play
 } from 'lucide-react';
+import { decideAction, interceptCommand, type ApiAction } from '../services/api';
 
 export function GovernanceView() {
   const { 
@@ -14,10 +15,15 @@ export function GovernanceView() {
     features, 
     approveFeature, 
     rejectFeature 
+    , addAuditLog
   } = useApp();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<'all' | 'workflow' | 'policy' | 'security' | 'approval'>('all');
+  const [command, setCommand] = useState('DROP DATABASE users');
+  const [interceptedAction, setInterceptedAction] = useState<ApiAction | null>(null);
+  const [interceptorBusy, setInterceptorBusy] = useState(false);
+  const [interceptorError, setInterceptorError] = useState<string | null>(null);
 
   // Filter audit logs
   const filteredLogs = useMemo(() => {
@@ -35,6 +41,68 @@ export function GovernanceView() {
   const pendingApprovals = useMemo(() => {
     return features.filter(f => f.status === 'awaiting_approval');
   }, [features]);
+
+  const runInterceptorDemo = async () => {
+    setInterceptorBusy(true);
+    setInterceptorError(null);
+    try {
+      const action = await interceptCommand({
+        command,
+        actor: 'Demo Runtime Wrapper',
+        environment: 'production',
+        estimated_records: command.toLowerCase().includes('delete') ? 147000 : undefined,
+      });
+      setInterceptedAction(action);
+      addAuditLog({
+        id: `action-${action.id}-${action.status}`,
+        timestamp: new Date().toISOString().replace('T', ' ').substring(0, 16),
+        action: action.status === 'HELD'
+          ? `Action Held (${action.risk_tier})`
+          : 'Action Allowed',
+        actor: action.status === 'HELD'
+          ? action.agent
+          : action.decided_by || 'Action Interceptor',
+        category: action.status === 'HELD' || action.risk_tier === 'CRITICAL'
+          ? 'security'
+          : 'approval',
+        details: `${action.action} — ${action.interceptor_reason || action.reason || ''}`,
+      });
+    } catch (err) {
+      setInterceptorError(err instanceof Error ? err.message : 'Interceptor request failed');
+    } finally {
+      setInterceptorBusy(false);
+    }
+  };
+
+  const decideInterceptedAction = async (allow: boolean) => {
+    if (!interceptedAction) return;
+    setInterceptorBusy(true);
+    setInterceptorError(null);
+    try {
+      const action = await decideAction(
+        interceptedAction.id,
+        allow,
+        'Human Gatekeeper',
+        allow
+          ? 'Critical runtime action manually confirmed for demo.'
+          : 'Rejected by human gatekeeper during runtime review.',
+        allow && interceptedAction.human_confirmation_required
+      );
+      setInterceptedAction(action);
+      addAuditLog({
+        id: `action-${action.id}-${action.status}`,
+        timestamp: new Date().toISOString().replace('T', ' ').substring(0, 16),
+        action: allow ? 'Action Allowed' : 'Action Blocked',
+        actor: action.decided_by || 'Human Gatekeeper',
+        category: 'approval',
+        details: `${action.action} — ${action.reason || ''}`,
+      });
+    } catch (err) {
+      setInterceptorError(err instanceof Error ? err.message : 'Decision request failed');
+    } finally {
+      setInterceptorBusy(false);
+    }
+  };
 
   return (
     <div className="w-full p-8 pt-8">
@@ -90,6 +158,92 @@ export function GovernanceView() {
                 </div>
               ))}
             </div>
+          </div>
+
+          {/* Runtime Interceptor Demo */}
+          <div className="bg-white border border-black/10 rounded-xl p-6">
+            <h3 className="text-[17px] font-[700] text-black mb-2 flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-black/60" />
+              Runtime action interceptor
+            </h3>
+            <p className="text-[12px] text-black/55 leading-normal mb-4">
+              Safe demo wrapper: commands are classified and held before execution. Nothing is actually run.
+            </p>
+
+            <div className="flex flex-col sm:flex-row gap-2 mb-4">
+              <input
+                value={command}
+                onChange={(e) => setCommand(e.target.value)}
+                className="flex-1 h-9 px-3 bg-[#f7f7f7] border border-black/10 rounded-lg text-[12px] font-mono outline-none focus:border-black/30"
+                placeholder="Try: DROP DATABASE users"
+              />
+              <button
+                onClick={runInterceptorDemo}
+                disabled={interceptorBusy || command.trim().length === 0}
+                className="h-9 px-4 bg-black text-white rounded-lg text-[12px] font-[700] flex items-center justify-center gap-1.5 disabled:opacity-40 cursor-pointer"
+              >
+                <Play className="w-3.5 h-3.5" />
+                Intercept
+              </button>
+            </div>
+
+            {interceptorError && (
+              <div className="mb-4 text-[12px] font-[600] text-red-700 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+                {interceptorError}
+              </div>
+            )}
+
+            {interceptedAction && (
+              <div className="border border-black/10 rounded-xl p-4 bg-[#f7f7f7]/45">
+                <div className="flex flex-wrap items-center gap-2 mb-3">
+                  <span className={`text-[11px] font-[800] px-2 py-1 rounded-full ${
+                    interceptedAction.risk_tier === 'CRITICAL'
+                      ? 'bg-red-100 text-red-700'
+                      : interceptedAction.risk_tier === 'MEDIUM'
+                      ? 'bg-amber-100 text-amber-700'
+                      : 'bg-green-100 text-green-700'
+                  }`}>
+                    {interceptedAction.risk_tier}
+                  </span>
+                  <span className="text-[11px] font-[800] px-2 py-1 rounded-full bg-white border border-black/10">
+                    {interceptedAction.status}
+                  </span>
+                  {interceptedAction.human_confirmation_required && (
+                    <span className="text-[11px] font-[800] px-2 py-1 rounded-full bg-black text-white">
+                      Human confirmation required
+                    </span>
+                  )}
+                </div>
+
+                <div className="text-[12px] font-mono text-black mb-2 break-all">
+                  {interceptedAction.action}
+                </div>
+                <p className="text-[12px] text-black/65 leading-normal mb-4">
+                  {interceptedAction.interceptor_reason}
+                </p>
+
+                {interceptedAction.status === 'HELD' && (
+                  <div className="flex justify-end gap-2">
+                    <button
+                      onClick={() => decideInterceptedAction(false)}
+                      disabled={interceptorBusy}
+                      className="flex items-center gap-1 px-3 py-1.5 border border-black/10 hover:bg-[#fcf5f5] text-black text-[12px] font-[600] rounded-lg cursor-pointer transition-colors disabled:opacity-40"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                      Block
+                    </button>
+                    <button
+                      onClick={() => decideInterceptedAction(true)}
+                      disabled={interceptorBusy}
+                      className="flex items-center gap-1 px-4 py-1.5 bg-black text-white hover:bg-black/90 text-[12px] font-[700] rounded-lg cursor-pointer transition-colors shadow-sm disabled:opacity-40"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                      Confirm & allow
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Pending Approval Requests */}

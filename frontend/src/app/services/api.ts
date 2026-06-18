@@ -77,6 +77,10 @@ export interface ApiAction {
   agent: string;
   action: string;
   risk: string;
+  risk_tier: 'LOW' | 'MEDIUM' | 'CRITICAL';
+  human_confirmation_required: boolean;
+  human_confirmed: boolean;
+  interceptor_reason: string;
   status: ActionStatus;
   decided_by?: string;
   reason?: string;
@@ -89,21 +93,33 @@ export const proposeAction = (payload: {
   agent: string;
   action: string;
   risk: string;
+  estimated_records?: number;
+  environment?: string;
 }) => post<ApiAction>('/api/actions/propose', payload);
 
 export const decideAction = (
   actionId: string,
   allow: boolean,
   decidedBy = 'User Dashboard',
-  reason = ''
+  reason = '',
+  humanConfirmed = false
 ) =>
   post<ApiAction>(`/api/actions/${actionId}/decide`, {
     allow,
     decided_by: decidedBy,
     reason: reason || (allow ? 'Approved by user.' : 'Rejected by user.'),
+    human_confirmed: humanConfirmed,
   });
 
 export const listActions = () => get<ApiAction[]>('/api/actions');
+
+export const interceptCommand = (payload: {
+  command: string;
+  actor?: string;
+  environment?: string;
+  estimated_records?: number;
+  feature_id?: string;
+}) => post<ApiAction>('/api/interceptor/commands', payload);
 
 // ─── Band ─────────────────────────────────────────────────────────────────────
 export interface BandStatus {
