@@ -1,9 +1,27 @@
 # NexusCore
 
-**NexusCore is a governance layer for AI agent teams.**
+```text
+███╗   ██╗███████╗██╗  ██╗██╗   ██╗███████╗ ██████╗ ██████╗ ██████╗ ███████╗
+████╗  ██║██╔════╝╚██╗██╔╝██║   ██║██╔════╝██╔════╝██╔═══██╗██╔══██╗██╔════╝
+██╔██╗ ██║█████╗   ╚███╔╝ ██║   ██║███████╗██║     ██║   ██║██████╔╝█████╗
+██║╚██╗██║██╔══╝   ██╔██╗ ██║   ██║╚════██║██║     ██║   ██║██╔══██╗██╔══╝
+██║ ╚████║███████╗██╔╝ ██╗╚██████╔╝███████║╚██████╗╚██████╔╝██║  ██║███████╗
+╚═╝  ╚═══╝╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚══════╝ ╚═════╝ ╚═════╝ ╚═╝  ╚═╝╚══════╝
+```
 
-It sits above agent workflows and asks a simple question before risky work happens:
-should this action be allowed, blocked, or held for human confirmation?
+Before an AI agent acts, NexusCore makes it answer.
+
+![Band](https://img.shields.io/badge/Band-Agent%20Collaboration-635BFF)
+![FastAPI](https://img.shields.io/badge/FastAPI-Governance%20Backend-009688)
+![React](https://img.shields.io/badge/React%20%2B%20Vite-Dashboard-646CFF)
+![LangGraph](https://img.shields.io/badge/LangGraph-Agent%20Adapter-111111)
+![WebSockets](https://img.shields.io/badge/WebSockets-Live%20Audit%20Feed-00D4FF)
+![AI/ML API](https://img.shields.io/badge/AI%2FML%20API-GPT%20Agents-F5A623)
+![Featherless](https://img.shields.io/badge/Featherless-Qwen%20Risk%20Agent-B44FFF)
+![Render](https://img.shields.io/badge/Render-Deployable-F0F4FF)
+
+NexusCore sits above agent workflows and asks a simple question before risky work
+happens: should this action be allowed, blocked, or held for human confirmation?
 
 This is a **hackathon project built for Band of Agents by lablab.ai**. It uses
 Band as the collaboration room where multiple specialized agents review risky
@@ -100,40 +118,35 @@ commands.
 
 ## Architecture
 
-```text
-User / Operator
-      |
-      v
-NexusCore Dashboard
-      |
-      v
-FastAPI Governance Backend
-      |
-      |-- Risk Tier Classifier
-      |-- Runtime Interceptor
-      |-- Pending Approval Gate
-      |-- Audit Ledger
-      |-- WebSocket Live Feed
-      |
-      v
-Band Collaboration Room
-      |
-      |-- Proposer Agent
-      |-- Risk Agent
-      |-- Compliance Agent
-      |-- Security Agent
-      |-- Test Agent
-      |-- Infrastructure Agent
-      |-- Rollback/Audit Agent
-      |-- Engineer Agent
-      |-- Master Agent
-      |
-      v
-ALLOW / BLOCK / HUMAN CONFIRMATION
-```
+```mermaid
+flowchart LR
+  A[Agent Action] --> G{NexusCore Gate}
+  G -->|LOW| AL[ALLOW + log]
+  G -->|MEDIUM| H[HOLD]
+  G -->|CRITICAL| HC[HOLD + human confirm]
 
-The dashboard is the operator view, the backend is the governance engine, and
-Band is the agent collaboration layer.
+  H --> B[Band Review Room<br/>Proposer · Risk · Compliance · Security · Master]
+  HC --> B
+  B --> D{ALLOW / BLOCK}
+
+  D -->|ALLOW| AL
+  D -->|BLOCK| BL[BLOCK]
+  AL --> L[(Audit Ledger)]
+  BL --> L
+  L --> UI[Dashboard Live Feed]
+
+  classDef gate fill:#F5A623,stroke:#C77700,color:#111111;
+  classDef band fill:#635BFF,stroke:#3F37C9,color:#ffffff;
+  classDef safe fill:#009688,stroke:#00796B,color:#ffffff;
+  classDef stop fill:#FF5A5F,stroke:#D62828,color:#ffffff;
+  classDef ledger fill:#00D4FF,stroke:#008FB3,color:#111111;
+
+  class G,D gate;
+  class B band;
+  class AL safe;
+  class H,HC,BL stop;
+  class L,UI ledger;
+```
 
 ## What Is Needed
 
