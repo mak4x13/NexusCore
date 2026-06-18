@@ -116,13 +116,15 @@ interface AppContextType {
 }
 
 const defaultStages: FeatureStage[] = [
-  { name: 'Planning', status: 'pending' },
-  { name: 'Architecture', status: 'pending' },
-  { name: 'Conflict Review', status: 'pending' },
-  { name: 'Engineering', status: 'pending' },
+  { name: 'Engineer Plan', status: 'pending' },
+  { name: 'Risk Proposal', status: 'pending' },
+  { name: 'Risk Review', status: 'pending' },
+  { name: 'Compliance Check', status: 'pending' },
   { name: 'Security Review', status: 'pending' },
-  { name: 'Compliance', status: 'pending' },
-  { name: 'Approved', status: 'pending' }
+  { name: 'Test Readiness', status: 'pending' },
+  { name: 'Infrastructure Review', status: 'pending' },
+  { name: 'Rollback/Audit', status: 'pending' },
+  { name: 'Master Decision', status: 'pending' }
 ];
 
 // ─── Static seed data (kept for demo richness, hydrated with real data) ──────
@@ -135,7 +137,7 @@ const seedFeatures: Feature[] = [
     status: 'completed',
     createdAt: '2026-06-16 10:15',
     elapsed: '12m',
-    currentStageIndex: 6,
+    currentStageIndex: 8,
     stages: defaultStages.map(s => ({ ...s, status: 'complete' })),
     logs: [
       '[10:15:02] Master Agent: Registered request for "OAuth2 Authentication Module". Starting feature planning.',
@@ -148,11 +150,11 @@ const seedFeatures: Feature[] = [
     id: 'feat-2',
     name: 'Redis Cluster Caching Strategy',
     repo: 'nexus-data-cache',
-    agent: 'Architect Agent',
+    agent: 'Infrastructure Agent',
     status: 'completed',
     createdAt: '2026-06-15 14:30',
     elapsed: '8m',
-    currentStageIndex: 6,
+    currentStageIndex: 8,
     stages: defaultStages.map(s => ({ ...s, status: 'complete' })),
     logs: [
       '[14:30:11] Master Agent: Cluster strategy cache request registered.',
@@ -169,13 +171,15 @@ const seedFeatures: Feature[] = [
     elapsed: '6m',
     currentStageIndex: 4,
     stages: [
-      { name: 'Planning', status: 'complete' },
-      { name: 'Architecture', status: 'complete' },
-      { name: 'Conflict Review', status: 'complete' },
-      { name: 'Engineering', status: 'complete' },
+      { name: 'Engineer Plan', status: 'complete' },
+      { name: 'Risk Proposal', status: 'complete' },
+      { name: 'Risk Review', status: 'complete' },
+      { name: 'Compliance Check', status: 'complete' },
       { name: 'Security Review', status: 'failed' },
-      { name: 'Compliance', status: 'pending' },
-      { name: 'Approved', status: 'pending' }
+      { name: 'Test Readiness', status: 'pending' },
+      { name: 'Infrastructure Review', status: 'pending' },
+      { name: 'Rollback/Audit', status: 'pending' },
+      { name: 'Master Decision', status: 'pending' }
     ],
     logs: [
       '[18:22:10] Master Agent: Auto-scaling configuration initiated.',
@@ -186,17 +190,31 @@ const seedFeatures: Feature[] = [
 
 const initialAgents: Agent[] = [
   {
-    name: 'Master Agent',
-    role: 'Swarm Orchestration & Routing',
+    name: 'Engineer/Builder Agent',
+    role: 'Code Plan & Patch Generation',
     status: 'idle',
-    tasksHandled: 142,
-    successRate: 98.5,
+    tasksHandled: 84,
+    successRate: 96.1,
+    iconName: 'Terminal',
+    config: {
+      model: 'gpt-4o',
+      temperature: 0.2,
+      memoryLimit: 8192,
+      systemPrompt: 'You are the Engineer/Builder Agent. Generate code plans and patch summaries, but never execute risky actions directly.'
+    }
+  },
+  {
+    name: 'Proposer Agent',
+    role: 'Dangerous Action Proposal',
+    status: 'idle',
+    tasksHandled: 212,
+    successRate: 96.7,
     iconName: 'Bot',
     config: {
       model: 'gpt-4o',
-      temperature: 0.1,
+      temperature: 0.3,
       memoryLimit: 8192,
-      systemPrompt: 'You are the Master Orchestration Agent. Coordinate features, route subtasks to agents, and manage pull requests.'
+      systemPrompt: 'You are the Proposer Agent. Convert risky build steps into formal proposals for governance review.'
     }
   },
   {
@@ -228,17 +246,73 @@ const initialAgents: Agent[] = [
     }
   },
   {
-    name: 'Proposer Agent',
-    role: 'Feature Planning & Code Generation',
+    name: 'Security Agent',
+    role: 'Security Impact Review',
     status: 'idle',
-    tasksHandled: 212,
-    successRate: 96.7,
+    tasksHandled: 76,
+    successRate: 97.8,
+    iconName: 'AlertCircle',
+    config: {
+      model: 'gpt-4o-mini',
+      temperature: 0.1,
+      memoryLimit: 4096,
+      systemPrompt: 'You are the Security Agent. Check auth, permissions, exposed secrets, unsafe endpoints, and vulnerabilities.'
+    }
+  },
+  {
+    name: 'Test Agent',
+    role: 'Test Readiness Review',
+    status: 'idle',
+    tasksHandled: 64,
+    successRate: 95.9,
+    iconName: 'Cpu',
+    config: {
+      model: 'gpt-4o-mini',
+      temperature: 0.1,
+      memoryLimit: 4096,
+      systemPrompt: 'You are the Test Agent. Check required unit, integration, migration, and smoke tests before approval.'
+    }
+  },
+  {
+    name: 'Infrastructure Agent',
+    role: 'Deploy & Production Impact',
+    status: 'idle',
+    tasksHandled: 58,
+    successRate: 96.4,
+    iconName: 'Database',
+    config: {
+      model: 'gpt-4o-mini',
+      temperature: 0.1,
+      memoryLimit: 4096,
+      systemPrompt: 'You are the Infrastructure Agent. Check deploy, database, cloud, CI/CD, env var, and production impact.'
+    }
+  },
+  {
+    name: 'Rollback/Audit Agent',
+    role: 'Rollback Plan & Audit Evidence',
+    status: 'idle',
+    tasksHandled: 52,
+    successRate: 98.0,
+    iconName: 'GitBranch',
+    config: {
+      model: 'gpt-4o-mini',
+      temperature: 0.1,
+      memoryLimit: 4096,
+      systemPrompt: 'You are the Rollback/Audit Agent. Check rollback plan, backups, logs, traceability, and audit evidence.'
+    }
+  },
+  {
+    name: 'Master Agent',
+    role: 'Final ALLOW/BLOCK Authority',
+    status: 'idle',
+    tasksHandled: 142,
+    successRate: 98.5,
     iconName: 'Bot',
     config: {
       model: 'gpt-4o',
-      temperature: 0.3,
+      temperature: 0.1,
       memoryLimit: 8192,
-      systemPrompt: 'You are the Lead Engineering Agent. Implement code, generate unit tests, and propose actions for dangerous operations.'
+      systemPrompt: 'You are the Master Orchestration Agent. Coordinate features, route subtasks to agents, and manage pull requests.'
     }
   }
 ];
@@ -427,9 +501,20 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         if (status.room) setBandRoom(status.room);
         // Reflect configured agents as active in our agents list
         if (status.configured) {
+          const agentNameMap: Record<string, string[]> = {
+            'Engineer/Builder Agent': ['engineer_agent'],
+            'Proposer Agent': ['proposer_agent'],
+            'Risk Agent': ['risk_agent'],
+            'Compliance Agent': ['compliance_agent'],
+            'Security Agent': ['security_agent'],
+            'Test Agent': ['test_agent'],
+            'Infrastructure Agent': ['infrastructure_agent'],
+            'Rollback/Audit Agent': ['rollback_audit_agent'],
+            'Master Agent': ['master_agent'],
+          };
           setAgents(prev => prev.map(a => {
-            const backendName = a.name.toLowerCase().replace(' ', '_');
-            const isPresent = status.agents.some(sa => sa.includes(backendName.split('_')[0]));
+            const possibleNames = agentNameMap[a.name] ?? [];
+            const isPresent = possibleNames.some(name => status.agents.includes(name));
             return isPresent ? { ...a, status: 'idle' } : a;
           }));
         }
@@ -610,18 +695,22 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     // ── Local UI simulation (runs regardless, makes UI feel alive) ───────
     const targetId = backendFeatureId ?? newId;
     let stage = 0;
-    const stageDurations = [3000, 3500, 3000, 4000, 4500, 4000, 3000];
+    const stageDurations = [3000, 3000, 3500, 3000, 3500, 3000, 3500, 3000, 3000];
     const stageAgents = [
-      'Architect Agent', 'Risk Agent', 'Proposer Agent',
-      'Proposer Agent', 'Compliance Agent', 'Compliance Agent', ''
+      'Engineer/Builder Agent', 'Proposer Agent', 'Risk Agent',
+      'Compliance Agent', 'Security Agent', 'Test Agent',
+      'Infrastructure Agent', 'Rollback/Audit Agent', 'Master Agent'
     ];
     const stageLogs = [
-      `Architect Agent: Creating system architecture models.`,
-      `Risk Agent: Analyzing risk vectors and threat models.`,
-      `Proposer Agent: Generating target source files skeleton.`,
-      `Proposer Agent: Implementing core logic and unit tests.`,
-      `Compliance Agent: Validating against SOC2/GDPR policy rules.`,
-      `Compliance Agent: Standards check passed. Holding for approval gate.`,
+      `Engineer/Builder Agent: Drafting code plan and patch summary.`,
+      `Proposer Agent: Converting risky operation into formal proposal.`,
+      `Risk Agent: Analyzing blast radius, reversibility, and data loss.`,
+      `Compliance Agent: Validating against policy and approved spec.`,
+      `Security Agent: Checking auth, secrets, and vulnerability impact.`,
+      `Test Agent: Checking required unit, integration, and smoke tests.`,
+      `Infrastructure Agent: Reviewing deploy, database, and production impact.`,
+      `Rollback/Audit Agent: Verifying rollback plan and audit evidence.`,
+      `Master Agent: Preparing final ALLOW/BLOCK decision.`,
     ];
 
     const runNextStage = () => {
@@ -654,7 +743,7 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         const approvalPolicyActive = policies.find(p => p.id === 'pol-1')?.enabled;
 
         // Hold at compliance stage if policy is on
-        if (stage === 6 && approvalPolicyActive) {
+        if (stage === 8 && approvalPolicyActive) {
           logMsgs.push(`[${time}] Holding workflow — awaiting Human Gatekeeper Approval.`);
           setAgents(prev => prev.map(a => ({ ...a, status: 'idle' })));
           toast.info(`Workflow "${name}" is waiting for approval.`);
@@ -662,15 +751,15 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           return prevFeatures.map(f => f.id === targetId ? {
             ...f,
             status: 'awaiting_approval' as const,
-            currentStageIndex: 5,
-            stages: updatedStages.map((s, idx) => idx === 5 ? { ...s, status: 'active' as const } : s),
+            currentStageIndex: 8,
+            stages: updatedStages.map((s, idx) => idx === 8 ? { ...s, status: 'active' as const } : s),
             logs: logMsgs,
             elapsed: '3m'
           } : f);
         }
 
         // Complete
-        if (stage === 7) {
+        if (stage === 9) {
           logMsgs.push(`[${time}] Master Agent: Merging pull request. Deployment succeeded.`);
           setAgents(prev => prev.map(a => ({ ...a, status: 'idle' })));
 
@@ -688,7 +777,7 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           return prevFeatures.map(f => f.id === targetId ? {
             ...f,
             status: 'completed' as const,
-            currentStageIndex: 6,
+            currentStageIndex: 8,
             stages: updatedStages.map(s => ({ ...s, status: 'complete' as const })),
             logs: logMsgs,
             elapsed: '4m'
@@ -698,7 +787,7 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         setTimeout(runNextStage, stageDurations[stage]);
         return prevFeatures.map(f => f.id === targetId ? {
           ...f,
-          currentStageIndex: Math.min(6, stage),
+          currentStageIndex: Math.min(8, stage),
           stages: updatedStages,
           logs: logMsgs,
           elapsed: `${Math.floor((stage * 40) / 60) + 1}m`
@@ -728,7 +817,7 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     setFeatures(prev => prev.map(f => f.id === id ? {
       ...f,
       status: 'completed' as const,
-      currentStageIndex: 6,
+      currentStageIndex: 8,
       stages: f.stages.map(s => ({ ...s, status: 'complete' as const })),
       logs: [
         ...f.logs,

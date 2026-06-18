@@ -27,7 +27,7 @@ from fastapi import (Depends, FastAPI, Header, HTTPException, WebSocket,
                      WebSocketDisconnect)
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 load_dotenv()
 
@@ -245,7 +245,7 @@ async def decide_action(action_id: str, d: Decision) -> Action:
 
 # --------------------------------------------------------------------------- #
 # Live Band bridge — post a request straight into the real Band room so the
-# running remote agents (Master/Risk/Compliance/Proposer) react. Verified schema.
+# running remote agents react. Verified schema.
 # --------------------------------------------------------------------------- #
 import re  # noqa: E402
 
@@ -255,10 +255,44 @@ import yaml  # noqa: E402
 _AGENTS_DIR = os.path.join(os.path.dirname(__file__), "..", "agents")
 BAND_BASE = "https://app.band.ai/api/v1"
 _ROOM_FALLBACK = "f0d6530c-e559-4172-b9eb-c19e818f7724"
-_NAME_MAP = {"master": "master_agent", "risk": "risk_agent",
-             "compliance": "compliance_agent", "proposer": "proposer_agent"}
-_REQUIRED_AGENTS = ["master_agent", "risk_agent",
-                    "compliance_agent", "proposer_agent"]
+_NAME_MAP = {
+    "engineer": "engineer_agent",
+    "builder": "engineer_agent",
+    "proposer": "proposer_agent",
+    "risk": "risk_agent",
+    "compliance": "compliance_agent",
+    "security": "security_agent",
+    "test": "test_agent",
+    "infrastructure": "infrastructure_agent",
+    "infra": "infrastructure_agent",
+    "rollback_audit": "rollback_audit_agent",
+    "rollback": "rollback_audit_agent",
+    "audit": "rollback_audit_agent",
+    "master": "master_agent",
+}
+_AGENT_DISPLAY_NAMES = {
+    "engineer_agent": "Engineer/Builder Agent",
+    "proposer_agent": "Proposer Agent",
+    "risk_agent": "Risk Agent",
+    "compliance_agent": "Compliance Agent",
+    "security_agent": "Security Agent",
+    "test_agent": "Test Agent",
+    "infrastructure_agent": "Infrastructure Agent",
+    "rollback_audit_agent": "Rollback/Audit Agent",
+    "master_agent": "Master Agent",
+}
+_CORE_AGENTS = ["master_agent", "risk_agent",
+                "compliance_agent", "proposer_agent"]
+_OPTIONAL_AGENTS = ["engineer_agent", "security_agent", "test_agent",
+                    "infrastructure_agent", "rollback_audit_agent"]
+_SUPPORTED_AGENTS = ["engineer_agent", "proposer_agent", "risk_agent",
+                     "compliance_agent", "security_agent", "test_agent",
+                     "infrastructure_agent", "rollback_audit_agent",
+                     "master_agent"]
+_REQUIRED_AGENTS = _CORE_AGENTS
+_DEFAULT_MENTIONS = ["engineer", "proposer", "risk", "compliance",
+                     "security", "test", "infrastructure",
+                     "rollback_audit"]
 
 
 def _current_room() -> str:
@@ -292,21 +326,24 @@ def _load_band_cfg() -> dict:
 
 def _id_name_map() -> dict:
     cfg = _load_band_cfg()
-    return {cfg[k]["agent_id"]: k.replace("_agent", "").title() + " Agent"
+    return {cfg[k]["agent_id"]: _AGENT_DISPLAY_NAMES.get(
+                k, k.replace("_agent", "").replace("_", " ").title() + " Agent")
             for k in cfg if isinstance(cfg.get(k), dict) and "agent_id" in cfg[k]}
 
 
 def _role_of(name: str) -> str:
     n = (name or "").lower()
-    for role in ("master", "risk", "compliance", "proposer"):
+    for role in ("rollback", "infrastructure", "engineer", "builder",
+                 "security", "master", "risk", "compliance",
+                 "proposer", "test"):
         if role in n:
-            return role
+            return "rollback_audit" if role == "rollback" else role
     return "human"
 
 
 class BandTrigger(BaseModel):
     text: str
-    mention: List[str] = ["proposer", "risk", "compliance"]
+    mention: List[str] = Field(default_factory=lambda: list(_DEFAULT_MENTIONS))
     sender: str = "master_agent"   # Master dispatches the work
 
 
@@ -319,12 +356,16 @@ async def band_status() -> dict:
     except HTTPException as e:
         return {"configured": False, "room": room, "agents": [],
                 "missing": _REQUIRED_AGENTS, "detail": e.detail}
-    present = [a for a in _REQUIRED_AGENTS
+    present = [a for a in _SUPPORTED_AGENTS
               if isinstance(cfg.get(a), dict)
               and cfg[a].get("agent_id") and cfg[a].get("api_key")]
-    missing = [a for a in _REQUIRED_AGENTS if a not in present]
+    missing = [a for a in _CORE_AGENTS if a not in present]
+    optional_missing = [a for a in _OPTIONAL_AGENTS if a not in present]
+    mode = "expanded" if not optional_missing else "core"
     return {"configured": not missing, "room": room,
-            "agents": present, "missing": missing}
+            "agents": present, "missing": missing,
+            "optional_missing": optional_missing,
+            "supported": _SUPPORTED_AGENTS, "mode": mode}
 
 
 @app.post("/api/band/trigger", dependencies=[Depends(require_demo_token)])
@@ -341,10 +382,17 @@ async def band_trigger(t: BandTrigger) -> dict:
     if unknown:
         raise HTTPException(400, f"unknown mention(s): {', '.join(unknown)}")
     # cannot @mention yourself — drop the sender from the mention list
-    mentions = [{"id": cfg[_NAME_MAP[m]]["agent_id"]}
-                for m in t.mention
-                if _NAME_MAP[m] != t.sender and isinstance(cfg.get(_NAME_MAP[m]), dict)
-                and cfg[_NAME_MAP[m]].get("agent_id")]
+    mentions = []
+    mentioned_roles = []
+    for m in t.mention:
+        agent_name = _NAME_MAP[m]
+        if agent_name == t.sender:
+            continue
+        entry = cfg.get(agent_name)
+        if not isinstance(entry, dict) or not entry.get("agent_id"):
+            continue
+        mentions.append({"id": entry["agent_id"]})
+        mentioned_roles.append(m)
     if not mentions:
         raise HTTPException(400, "no valid agents to mention")
 
@@ -359,7 +407,7 @@ async def band_trigger(t: BandTrigger) -> dict:
         raise HTTPException(502, f"Band rejected the message ({r.status_code})")
     # mirror into the local feed so the dashboard shows what was triggered
     await _post("Engineer", "human", f"→ Band room: {t.text}")
-    return {"sent": True, "mentioned": t.mention}
+    return {"sent": True, "mentioned": mentioned_roles}
 
 
 @app.get("/api/band/room")

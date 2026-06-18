@@ -1,4 +1,4 @@
-# Render blueprint — one web service runs backend + 4 Band agents (start.py).
+# Render blueprint - one web service runs backend + configured Band agents (start.py).
 # Secrets are entered in the Render dashboard (sync: false), never in git.
 services:
   - type: web
@@ -20,6 +20,10 @@ services:
         sync: false
       - key: BAND_MASTER_KEY
         sync: false
+      - key: BAND_ENGINEER_UUID
+        sync: false
+      - key: BAND_ENGINEER_KEY
+        sync: false
       - key: BAND_RISK_UUID
         sync: false
       - key: BAND_RISK_KEY
@@ -31,6 +35,22 @@ services:
       - key: BAND_PROPOSER_UUID
         sync: false
       - key: BAND_PROPOSER_KEY
+        sync: false
+      - key: BAND_SECURITY_UUID
+        sync: false
+      - key: BAND_SECURITY_KEY
+        sync: false
+      - key: BAND_TEST_UUID
+        sync: false
+      - key: BAND_TEST_KEY
+        sync: false
+      - key: BAND_INFRASTRUCTURE_UUID
+        sync: false
+      - key: BAND_INFRASTRUCTURE_KEY
+        sync: false
+      - key: BAND_ROLLBACK_AUDIT_UUID
+        sync: false
+      - key: BAND_ROLLBACK_AUDIT_KEY
         sync: false
       # --- Demo room + optional write protection ---
       - key: BAND_ROOM

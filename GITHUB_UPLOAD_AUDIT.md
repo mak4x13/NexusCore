@@ -116,14 +116,14 @@ Frontend handoff notes:
   - `http://localhost:8000/` -> 200
   - `http://localhost:8000/app.js` -> 200 and contains token support
   - `http://localhost:8000/style.css` -> 200
-  - `http://localhost:8000/api/band/status` -> configured with 4 agents
+- `http://localhost:8000/api/band/status` -> configured with the 4 core agents, or expanded mode if all 9 agents are configured
 
 ## Final Pre-Upload Checklist
 
 1. Use git, not manual folder upload.
 2. Confirm `git status` does not include `.env`, `agent_config.yaml`, `.venv`, or `__pycache__`.
-3. Open `http://localhost:8000/api/band/status` and confirm 4 agents are configured.
+3. Open `http://localhost:8000/api/band/status` and confirm the 4 core agents are configured.
 4. Open `http://localhost:8000` and confirm the dashboard loads.
 5. Run one live demo request in Band.
-6. Confirm Proposer, Risk, Compliance, and Master all speak in the Band room.
+6. Confirm Proposer, Risk, Compliance, and Master all speak in the Band room. If expanded agents are configured, also confirm Engineer/Builder, Security, Test, Infrastructure, and Rollback/Audit speak.
 7. Record the demo around the message flow and Emergency Brake concept.

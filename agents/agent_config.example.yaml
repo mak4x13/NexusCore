@@ -6,6 +6,10 @@ master_agent:
   agent_id: "<master-agent-uuid>"
   api_key: "<master-band-api-key>"
 
+engineer_agent:
+  agent_id: "<engineer-agent-uuid>"
+  api_key: "<engineer-band-api-key>"
+
 risk_agent:
   agent_id: "<risk-agent-uuid>"
   api_key: "<risk-band-api-key>"
@@ -17,3 +21,19 @@ compliance_agent:
 proposer_agent:
   agent_id: "<proposer-agent-uuid>"
   api_key: "<proposer-band-api-key>"
+
+security_agent:
+  agent_id: "<security-agent-uuid>"
+  api_key: "<security-band-api-key>"
+
+test_agent:
+  agent_id: "<test-agent-uuid>"
+  api_key: "<test-band-api-key>"
+
+infrastructure_agent:
+  agent_id: "<infrastructure-agent-uuid>"
+  api_key: "<infrastructure-band-api-key>"
+
+rollback_audit_agent:
+  agent_id: "<rollback-audit-agent-uuid>"
+  api_key: "<rollback-audit-band-api-key>"

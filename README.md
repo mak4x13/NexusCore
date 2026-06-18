@@ -34,7 +34,7 @@ source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 # Install combined backend and agent dependencies
 pip install -r requirements.txt
 
-# Run the launcher (starts FastAPI on port 8000 and launches the 4 agents)
+# Run the launcher (starts FastAPI on port 8000 and launches configured agents)
 python start.py
 ```
 *(Note: Agent credentials/keys must be configured in environment variables or via `agents/agent_config.yaml` to run the agent subprocesses.)*
@@ -83,6 +83,34 @@ In this mode, the frontend is built into static assets and served directly by th
 | **Band API key** | band.ai -> Agents -> New Agent / Remote Agent | puts an agent in the room (talk + listen) |
 | **LLM key** | AI/ML API ($10) or Featherless ($25) | 🧠 the agent's brain |
 | **BANDHACK26** | promo at checkout | upgrades the Band *account* to Pro (not a code key) |
+
+## Agent Architecture
+
+The stable MVP uses 4 live Band agents:
+
+| Agent | Role | Brain | Provider |
+|-------|------|-------|----------|
+| Proposer | Turns risky work into a formal proposal | GPT-4o | AI/ML API |
+| Risk | Reviews blast radius, reversibility, and production impact | Qwen2.5-72B | Featherless |
+| Compliance | Checks policy/spec fit | GPT-4o-mini | AI/ML API |
+| Master | Final ALLOW/BLOCK authority | GPT-4o | AI/ML API |
+
+The expanded architecture supports 9 agents:
+
+| Agent | Role |
+|-------|------|
+| Engineer/Builder | Generates code plans, patch summaries, or command plans |
+| Proposer | Converts risky code/actions into a formal PROPOSAL |
+| Risk | Reviews blast radius and reversibility |
+| Compliance | Checks policy/spec and approval requirements |
+| Security | Checks auth, permissions, secrets, endpoints, and vulnerabilities |
+| Test | Checks test readiness |
+| Infrastructure | Checks deploy, database, cloud, CI/CD, and production impact |
+| Rollback/Audit | Checks rollback plan, backups, logs, and traceability |
+| Master | Gives final DECISION: ALLOW/BLOCK |
+
+The Emergency Brake is not a separate agent. It is the backend/UI gate that holds
+dangerous actions until the Band agents review them and Master decides.
 
 ## Cross-framework (the originality angle)
 

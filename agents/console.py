@@ -6,7 +6,7 @@ Proves NexusCore can be driven programmatically, not only by typing in the UI.
 
 Usage:
     python console.py "implement user cleanup, we may need to DROP the users table"
-    python console.py --mention proposer,risk "deploy v2 to production now"
+    python console.py --mention engineer,proposer,risk "deploy v2 to production now"
 
 Verified Band REST schema:
     POST /api/v1/agent/chats/{room}/messages
@@ -39,20 +39,34 @@ def main() -> None:
     p = argparse.ArgumentParser()
     p.add_argument("text", help="message to post into the room")
     p.add_argument("--mention", default="proposer",
-                   help="comma list: proposer,risk,compliance,master")
+                   help=("comma list: engineer,proposer,risk,compliance,security,"
+                         "test,infrastructure,rollback_audit,master"))
     p.add_argument("--as", dest="sender", default="proposer_agent",
                    help="which agent's key to send as")
     args = p.parse_args()
 
     cfg = yaml.safe_load(open(CONFIG))
+    if args.sender not in cfg or not isinstance(cfg.get(args.sender), dict):
+        print(f"Unknown sender: {args.sender}", file=sys.stderr)
+        sys.exit(1)
     key = cfg[args.sender]["api_key"]
 
     name_map = {
+        "engineer": "engineer_agent", "builder": "engineer_agent",
         "master": "master_agent", "risk": "risk_agent",
         "compliance": "compliance_agent", "proposer": "proposer_agent",
+        "security": "security_agent", "test": "test_agent",
+        "infrastructure": "infrastructure_agent", "infra": "infrastructure_agent",
+        "rollback_audit": "rollback_audit_agent", "rollback": "rollback_audit_agent",
+        "audit": "rollback_audit_agent",
     }
-    mentions = [{"id": cfg[name_map[m.strip()]]["agent_id"]}
-                for m in args.mention.split(",") if m.strip() in name_map]
+    mentions = []
+    for raw in args.mention.split(","):
+        key_name = raw.strip()
+        agent_name = name_map.get(key_name)
+        entry = cfg.get(agent_name) if agent_name else None
+        if isinstance(entry, dict) and entry.get("agent_id"):
+            mentions.append({"id": entry["agent_id"]})
 
     body = {"message": {"content": args.text, "mentions": mentions}}
     r = httpx.post(f"{BASE}/agent/chats/{ROOM}/messages",

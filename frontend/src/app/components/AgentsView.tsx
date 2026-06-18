@@ -13,7 +13,10 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   GitBranch: GitBranch,
   AlertCircle: AlertCircle,
   Shield: Shield,
-  FileCheck: FileCheck
+  FileCheck: FileCheck,
+  Cpu: Cpu,
+  Database: Database,
+  Terminal: Terminal
 };
 
 export function AgentsView() {
@@ -82,7 +85,7 @@ export function AgentsView() {
           </div>
           <div>
             <h3 className="text-[15px] font-[600] text-black">Swarm Orchestration Mode</h3>
-            <p className="text-[13px] text-black/60">6 active LLM agents routing tasks via asynchronous protocols.</p>
+            <p className="text-[13px] text-black/60">{agents.length} governance agents routing tasks through Band.</p>
           </div>
         </div>
         <div className="flex items-center gap-2">

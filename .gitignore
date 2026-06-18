@@ -6,4 +6,5 @@ __pycache__/
 venv/
 .DS_Store
 frontend/node_modules/
-frontend/dist/
+# Keep the built frontend in git because the Render Python service serves
+# frontend/dist directly and does not run an npm build step.

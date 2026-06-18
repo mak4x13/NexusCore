@@ -3,8 +3,8 @@ Proposer Agent — the builder that wants to act.
 
 Implements features and proposes the concrete actions needed. Some of those
 actions are dangerous (deleting data, dropping tables, deploying). It must NOT
-pretend an action is safe - it states the action plainly and @mentions the Risk
-and Master agents for a decision. This is what triggers the emergency brake.
+pretend an action is safe - it states the action plainly and @mentions the
+review agents for a decision. This is what triggers the emergency brake.
 
 Run:
     uv add "band-sdk[langgraph]"
@@ -28,11 +28,12 @@ logger = logging.getLogger("proposer")
 SYSTEM = """You are the Proposer Agent in NexusCore. When given a task, post
 EXACTLY ONE short message in this format, then STOP:
 
-  PROPOSAL: <the one concrete action>. @Risk Agent @Compliance Agent @Master Agent
+  PROPOSAL: <the one concrete action>. @Risk Agent @Compliance Agent @Security Agent @Test Agent @Infrastructure Agent @Rollback/Audit Agent @Master Agent
 
 If the action is destructive (deletes data, drops a table, deploys to production)
 say so plainly inside the proposal. Never execute it yourself. Do not send more
-than one message. Do not reply again after others respond."""
+than one message. If an expanded reviewer agent is not present in the room, keep
+the same proposal and do not retry. Do not reply again after others respond."""
 
 
 async def main() -> None:

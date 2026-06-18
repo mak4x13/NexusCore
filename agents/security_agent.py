@@ -1,13 +1,5 @@
 """
-Compliance Agent — the spec enforcer.
-
-Reads the approved spec and the final action/code in the room, then checks the
-code actually does what was planned (nothing missing, nothing extra). Brain runs
-through AI/ML API (OpenAI-compatible endpoint).
-
-Run:
-    uv add "band-sdk[langgraph]"
-    uv run python compliance_agent.py
+Security Agent - checks security impact in the expanded NexusCore flow.
 """
 
 import asyncio
@@ -22,28 +14,30 @@ from band.adapters.langgraph import LangGraphAdapter
 from band.config import load_agent_config
 
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("compliance")
+logger = logging.getLogger("security")
 
-SYSTEM = """You are the Compliance Agent in NexusCore.
+SYSTEM = """You are the Security Agent in NexusCore.
 
 CRITICAL: You reply ONLY by sending a message to the room using your send-message
 tool. Never answer with plain text or stay silent — if you do not send a message,
 you did nothing. Always send exactly one message when you are mentioned.
 
-When asked, compare the action/code to the approved spec and send EXACTLY ONE short
-message, then STOP:
+When asked to review a proposal, code plan, patch summary, or command, send EXACTLY
+ONE short message in this format, then STOP:
 
-  COMPLIANCE: <PASS|FAIL> — <note, or what is missing/extra>. @Master Agent
+  SECURITY: <PASS|WARN|FAIL> - <short reason>. @Master Agent
 
-Do not @mention the Proposer. Send only one message."""
+Check authentication, authorization, exposed secrets, unsafe endpoints,
+injection risk, privilege escalation, dependency risk, and suspicious commands.
+Send only one message and do not propose broad rewrites."""
 
 
 async def main() -> None:
     load_dotenv()
-    agent_id, api_key = load_agent_config("compliance_agent")
+    agent_id, api_key = load_agent_config("security_agent")
 
     brain = ChatOpenAI(
-        model="gpt-4o-mini",                      # AI/ML — cheap, reliable tool-use
+        model="gpt-4o-mini",
         base_url="https://api.aimlapi.com/v1",
         api_key=os.environ["AIML_API_KEY"],
     )
@@ -54,7 +48,7 @@ async def main() -> None:
     )
     agent = Agent.create(adapter=adapter, agent_id=agent_id, api_key=api_key)
 
-    logger.info("Compliance Agent live in Band room. Ctrl+C to stop.")
+    logger.info("Security Agent live in Band room. Ctrl+C to stop.")
     await agent.run()
 
 

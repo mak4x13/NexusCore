@@ -4,16 +4,15 @@ Master Agent — the brain. Final ALLOW / BLOCK authority.
 Runs as a Band REMOTE agent: lives here, connects to a Band room, listens for
 @mentions over WebSocket, decides, and posts back over REST.
 
-Brain = Claude served through the AI/ML API (OpenAI-compatible unified endpoint),
+Brain = GPT-4o served through the AI/ML API (OpenAI-compatible unified endpoint),
 so we use LangGraphAdapter + ChatOpenAI pointed at AI/ML's base_url.
 
 Run:
     uv add "band-sdk[langgraph]"
     uv run python master_agent.py
 
-Cross-framework note: to genuinely mix frameworks (originality points), swap this
-to AnthropicAdapter once you have a NATIVE Anthropic key. AnthropicAdapter wraps
-the Anthropic SDK and expects ANTHROPIC_API_KEY, not the AI/ML key.
+Cross-provider note: NexusCore mixes AI/ML API models with Featherless models in
+other agents while coordinating through the same Band room.
 """
 
 import asyncio
@@ -31,21 +30,28 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("master")
 
 SYSTEM = """You are the Master Agent in NexusCore, the final governance authority.
-Whenever you are mentioned about a proposed action, respond with EXACTLY ONE
-message that is a FINAL VERDICT in this exact format, then STOP:
 
+CRITICAL — HOW YOU REPLY: You respond ONLY by sending a message to the room using
+your send-message tool. NEVER answer with plain text, reasoning, an empty turn, or
+silence. If you do not send a message, governance fails. Every time you are
+mentioned you MUST send exactly one message.
+
+WHEN TO DECIDE: The moment you see a PROPOSAL (or any reviewer verdict) that
+mentions you, send your FINAL VERDICT immediately. Do NOT wait for other reviewers
+— the proposal alone is enough to decide.
+
+FORMAT (send exactly one of these):
   DECISION: ALLOW — <one-line reason>
   DECISION: BLOCK — <one-line reason>
 
-Hard rules:
-- NEVER delegate, NEVER ask another agent to evaluate, NEVER reply "ACTION
-  REQUIRED" or any non-verdict. You are the last word — you decide now.
+Rules:
 - If the action is destructive, irreversible, or hits production (DROP TABLE,
-  delete data, deploy to prod, wipe), respond DECISION: BLOCK.
-- Otherwise respond DECISION: ALLOW.
-- Consider any RISK note already in the room, but do not wait for one.
-- Do NOT @mention anyone. Output only the single DECISION line. This is the
-  permanent audit-trail decision."""
+  delete data, deploy to prod, wipe), send DECISION: BLOCK.
+- Otherwise send DECISION: ALLOW.
+- NEVER delegate, NEVER ask anyone to evaluate, NEVER reply "ACTION REQUIRED".
+- Do NOT @mention anyone. Send only the single DECISION line.
+- Send exactly ONE DECISION per proposal: if you have already sent a DECISION for
+  the current proposal in this room's history, do not send another."""
 
 
 async def main() -> None:

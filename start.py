@@ -1,9 +1,9 @@
 """
-start.py — single-process launcher for Render (backend + 4 Band agents).
+start.py - single-process launcher for Render/local (backend + Band agents).
 
 Render gives one web service. We:
   1. Build agents/agent_config.yaml from environment variables (no secrets in git).
-  2. Launch the 4 remote agents as background subprocesses.
+  2. Launch configured remote agents as background subprocesses.
   3. Run the FastAPI backend in the foreground bound to $PORT.
 
 LLM keys (AIML_API_KEY, FEATHERLESS_API_KEY) and Band keys are read from the
@@ -11,10 +11,17 @@ environment (set them in the Render dashboard). Nothing secret is committed.
 
 Required env vars:
   AIML_API_KEY, FEATHERLESS_API_KEY
+  Core 4-agent MVP:
   BAND_MASTER_UUID,     BAND_MASTER_KEY
   BAND_RISK_UUID,       BAND_RISK_KEY
   BAND_COMPLIANCE_UUID, BAND_COMPLIANCE_KEY
   BAND_PROPOSER_UUID,   BAND_PROPOSER_KEY
+  Optional expanded agents:
+  BAND_ENGINEER_UUID,        BAND_ENGINEER_KEY
+  BAND_SECURITY_UUID,        BAND_SECURITY_KEY
+  BAND_TEST_UUID,            BAND_TEST_KEY
+  BAND_INFRASTRUCTURE_UUID,  BAND_INFRASTRUCTURE_KEY
+  BAND_ROLLBACK_AUDIT_UUID,  BAND_ROLLBACK_AUDIT_KEY
   BAND_ROOM            (the demo room id the agents already joined)
 Optional:
   DEMO_TOKEN           (protect write endpoints)
@@ -27,36 +34,64 @@ import subprocess
 import sys
 import time
 
+import yaml
+from dotenv import load_dotenv
+
 ROOT = os.path.dirname(os.path.abspath(__file__))
 AGENTS_DIR = os.path.join(ROOT, "agents")
 CONFIG_PATH = os.path.join(AGENTS_DIR, "agent_config.yaml")
 
 _AGENTS = [
     ("master_agent", "BAND_MASTER_UUID", "BAND_MASTER_KEY"),
+    ("engineer_agent", "BAND_ENGINEER_UUID", "BAND_ENGINEER_KEY"),
     ("risk_agent", "BAND_RISK_UUID", "BAND_RISK_KEY"),
     ("compliance_agent", "BAND_COMPLIANCE_UUID", "BAND_COMPLIANCE_KEY"),
     ("proposer_agent", "BAND_PROPOSER_UUID", "BAND_PROPOSER_KEY"),
+    ("security_agent", "BAND_SECURITY_UUID", "BAND_SECURITY_KEY"),
+    ("test_agent", "BAND_TEST_UUID", "BAND_TEST_KEY"),
+    ("infrastructure_agent", "BAND_INFRASTRUCTURE_UUID", "BAND_INFRASTRUCTURE_KEY"),
+    ("rollback_audit_agent", "BAND_ROLLBACK_AUDIT_UUID", "BAND_ROLLBACK_AUDIT_KEY"),
 ]
 
 
+def load_local_env() -> None:
+    """Support local .env files while keeping Render env vars authoritative."""
+    load_dotenv(os.path.join(ROOT, "backend", ".env"))
+    load_dotenv(os.path.join(ROOT, "agents", ".env"))
+
+
+def configured_agent_names() -> list[str]:
+    """Return configured agent names from agents/agent_config.yaml."""
+    try:
+        with open(CONFIG_PATH) as f:
+            cfg = yaml.safe_load(f) or {}
+    except (OSError, yaml.YAMLError):
+        return []
+    names = []
+    for name, _, _ in _AGENTS:
+        entry = cfg.get(name)
+        if isinstance(entry, dict) and entry.get("agent_id") and entry.get("api_key"):
+            names.append(name)
+    return names
+
+
 def write_agent_config() -> bool:
-    """Generate agent_config.yaml from env. Returns True if all agents present."""
-    lines, complete = [], True
+    """Generate agent_config.yaml from env. Returns True if any agent is present."""
+    lines = []
     for name, uuid_env, key_env in _AGENTS:
         uuid, key = os.environ.get(uuid_env), os.environ.get(key_env)
         if not uuid or not key:
-            complete = False
             continue
         lines.append(f'{name}:\n  agent_id: "{uuid}"\n  api_key: "{key}"\n')
     if lines:
         with open(CONFIG_PATH, "w") as f:
             f.write("\n".join(lines))
-    return complete
+    return bool(lines)
 
 
-def launch_agents() -> list:
+def launch_agents(names: list[str]) -> list:
     procs = []
-    for name, _, _ in _AGENTS:
+    for name in names:
         script = os.path.join(AGENTS_DIR, f"{name}.py")
         if not os.path.exists(script):
             continue
@@ -67,12 +102,14 @@ def launch_agents() -> list:
 
 
 def main() -> None:
-    has_band = write_agent_config()
+    load_local_env()
+    write_agent_config()
+    configured = configured_agent_names()
     run_agents = os.environ.get("RUN_AGENTS", "1") != "0"
 
-    if run_agents and has_band:
-        print("Launching 4 Band agents...", flush=True)
-        launch_agents()
+    if run_agents and configured:
+        print(f"Launching {len(configured)} Band agents...", flush=True)
+        launch_agents(configured)
     else:
         print("Backend only (Band agents not launched: missing keys or RUN_AGENTS=0).",
               flush=True)
