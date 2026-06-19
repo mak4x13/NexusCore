@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Network, Bot, GitBranch, Shield, FileCheck, AlertCircle, 
-  ArrowRight, Info, CheckCircle2, ChevronRight, Terminal, RefreshCw
+  ArrowRight, Info, CheckCircle2, ChevronRight, Terminal, Database, Cpu
 } from 'lucide-react';
 
 interface Node {
@@ -11,6 +11,8 @@ interface Node {
   role: string;
   x: number;
   y: number;
+  labelX?: number;
+  labelY?: number;
   icon: typeof Bot;
   color: string;
   details: {
@@ -31,103 +33,153 @@ const nodes: Node[] = [
   {
     id: 'master',
     name: 'Master Agent',
-    role: 'Swarm Orchestration',
+    role: 'Final ALLOW/BLOCK Authority',
     x: 80,
-    y: 200,
+    y: 250,
+    labelY: 56,
     icon: Bot,
     color: '#000000',
     details: {
-      inputs: ['User Feature Specifications', 'Sub-agent Execution Logs', 'Approval Tokens'],
-      outputs: ['Refined Task Scopes', 'Route Configurations', 'Pull Request Merges'],
-      schema: `{\n  "event": "workflow_init",\n  "feature_id": "feat-9402",\n  "agent_targets": ["architect", "engineer", "security"],\n  "status": "routing"\n}`
-    }
-  },
-  {
-    id: 'architect',
-    name: 'Architect Agent',
-    role: 'System Design',
-    x: 300,
-    y: 80,
-    icon: GitBranch,
-    color: '#000000',
-    details: {
-      inputs: ['Orchestrator Task Parameters', 'API Design Protocols'],
-      outputs: ['Architecture Specification Markdown', 'Modular Class Schemas'],
-      schema: `{\n  "target": "engineer",\n  "components": [\n    {\n      "name": "AuthService",\n      "methods": ["login", "refreshToken", "validateSession"]\n    }\n  ],\n  "dependencies": ["redis", "postgres"]\n}`
-    }
-  },
-  {
-    id: 'conflict',
-    name: 'Conflict Agent',
-    role: 'Git AST Refactoring',
-    x: 300,
-    y: 200,
-    icon: AlertCircle,
-    color: '#000000',
-    details: {
-      inputs: ['Raw Code Diffs', 'Workspace File Paths'],
-      outputs: ['Clean Refactored Diffs', 'Merge Integrity Signatures'],
-      schema: `{\n  "git_ref": "feature/auth",\n  "conflicts_resolved": 3,\n  "files_modified": ["src/db/client.ts"],\n  "compilation_check": "passed"\n}`
+      inputs: ['Reviewer Findings', 'Risk Tier', 'Human Confirmation State'],
+      outputs: ['DECISION: ALLOW', 'DECISION: BLOCK', 'Audit Ledger Entry'],
+      schema: `{\n  "event": "master_decision",\n  "action_id": "act-9402",\n  "risk_tier": "CRITICAL",\n  "human_confirmed": true,\n  "decision": "ALLOW"\n}`
     }
   },
   {
     id: 'engineer',
-    name: 'Engineer Agent',
-    role: 'Code Generation',
-    x: 300,
-    y: 320,
-    icon: Bot,
+    name: 'Engineer/Builder Agent',
+    role: 'Code Plan & Patch Generation',
+    x: 250,
+    y: 65,
+    labelY: 58,
+    icon: Terminal,
     color: '#000000',
     details: {
-      inputs: ['Architecture Specifications', 'Conflict Assessment Reports'],
-      outputs: ['Target Source Files', 'Automated Unit Tests'],
-      schema: `{\n  "files": [\n    {\n      "path": "src/auth/oauth.ts",\n      "lines_generated": 142,\n      "unit_tests": "src/auth/__tests__/oauth.test.ts"\n    }\n  ]\n}`
+      inputs: ['User Task', 'Repository Context', 'Approved Scope'],
+      outputs: ['Code Plan', 'Patch Summary', 'Proposed Command'],
+      schema: `{\n  "agent": "engineer_agent",\n  "task": "draft implementation plan",\n  "risky_action": false,\n  "next": "proposer_agent"\n}`
     }
   },
   {
-    id: 'security',
-    name: 'Security Agent',
-    role: 'CVE & Code Auditor',
-    x: 520,
-    y: 140,
+    id: 'proposer',
+    name: 'Proposer Agent',
+    role: 'Dangerous Action Proposal',
+    x: 250,
+    y: 250,
+    labelY: 58,
+    icon: Bot,
+    color: '#000000',
+    details: {
+      inputs: ['Engineer Plan', 'Command Text', 'Runtime Action'],
+      outputs: ['Formal PROPOSAL', 'Reviewer Mentions', 'Band Room Trigger'],
+      schema: `{\n  "agent": "proposer_agent",\n  "proposal": "DROP TABLE payment_transactions",\n  "mentions": ["risk", "compliance", "security", "test", "infrastructure", "rollback_audit", "master"]\n}`
+    }
+  },
+  {
+    id: 'risk',
+    name: 'Risk Agent',
+    role: 'Risk Assessment & Danger Detection',
+    x: 430,
+    y: 65,
+    labelY: 58,
     icon: Shield,
     color: '#000000',
     details: {
-      inputs: ['Generated Source Files', 'Dependency Configs'],
-      outputs: ['AST Audit Reports', 'Vulnerability Flag Ledgers'],
-      schema: `{\n  "files_scanned": 4,\n  "vulnerabilities": [],\n  "sast_score": 100,\n  "status": "passed_audit"\n}`
+      inputs: ['Formal PROPOSAL', 'Environment', 'Estimated Impact'],
+      outputs: ['Risk Tier', 'Blast Radius', 'ALLOW/BLOCK Recommendation'],
+      schema: `{\n  "agent": "risk_agent",\n  "risk_tier": "CRITICAL",\n  "reversible": false,\n  "recommendation": "BLOCK"\n}`
     }
   },
   {
     id: 'compliance',
     name: 'Compliance Agent',
-    role: 'Policy Guardrail',
-    x: 520,
-    y: 260,
+    role: 'Governance & Spec Enforcer',
+    x: 430,
+    y: 160,
+    labelY: 64,
     icon: FileCheck,
     color: '#000000',
     details: {
-      inputs: ['AST Audit Reports', 'Agent Execution Trails'],
-      outputs: ['SOC2 Attestation Tokens', 'Human Gatekeeper Hold Tokens'],
-      schema: `{\n  "soc2_policy_check": "passed",\n  "require_manual_signoff": true,\n  "compliance_id": "COMP-901"\n}`
+      inputs: ['Formal PROPOSAL', 'Policy Rules', 'Approved Spec'],
+      outputs: ['Policy PASS/WARN/FAIL', 'Approval Requirement', 'Compliance Notes'],
+      schema: `{\n  "agent": "compliance_agent",\n  "policy_check": "FAIL",\n  "requires_human_approval": true,\n  "reason": "critical production data action"\n}`
+    }
+  },
+  {
+    id: 'security',
+    name: 'Security Agent',
+    role: 'Security Impact Review',
+    x: 430,
+    y: 260,
+    labelY: 64,
+    icon: AlertCircle,
+    color: '#000000',
+    details: {
+      inputs: ['Formal PROPOSAL', 'Auth Context', 'Secrets/Endpoint Scope'],
+      outputs: ['Security PASS/WARN/FAIL', 'Auth Findings', 'Vulnerability Notes'],
+      schema: `{\n  "agent": "security_agent",\n  "finding": "FAIL",\n  "secret_exposure": false,\n  "approval_chain": "missing"\n}`
+    }
+  },
+  {
+    id: 'test',
+    name: 'Test Agent',
+    role: 'Test Readiness Review',
+    x: 430,
+    y: 360,
+    labelY: 64,
+    icon: Cpu,
+    color: '#000000',
+    details: {
+      inputs: ['Code Plan', 'Change Type', 'Runtime Action'],
+      outputs: ['Test Coverage Status', 'Smoke Test Requirements', 'Readiness Verdict'],
+      schema: `{\n  "agent": "test_agent",\n  "coverage": "insufficient",\n  "smoke_tests_required": true,\n  "verdict": "WARN"\n}`
+    }
+  },
+  {
+    id: 'infrastructure',
+    name: 'Infrastructure Agent',
+    role: 'Deploy & Production Impact',
+    x: 430,
+    y: 455,
+    labelY: 64,
+    icon: Database,
+    color: '#000000',
+    details: {
+      inputs: ['Deployment Target', 'Database Scope', 'Cloud/CI Context'],
+      outputs: ['Production Impact', 'Database Risk', 'Infra Recommendation'],
+      schema: `{\n  "agent": "infrastructure_agent",\n  "environment": "production",\n  "database_impact": "high",\n  "recommendation": "HOLD"\n}`
+    }
+  },
+  {
+    id: 'rollback',
+    name: 'Rollback/Audit Agent',
+    role: 'Rollback Plan & Audit Evidence',
+    x: 650,
+    y: 250,
+    labelY: 58,
+    icon: GitBranch,
+    color: '#000000',
+    details: {
+      inputs: ['Reviewer Findings', 'Backup State', 'Audit Trace'],
+      outputs: ['Rollback PASS/WARN/FAIL', 'Backup Freshness', 'Traceability Verdict'],
+      schema: `{\n  "agent": "rollback_audit_agent",\n  "rollback_plan": "absent",\n  "backup_fresh": false,\n  "audit_trace": "present"\n}`
     }
   }
 ];
 
 const connections: Connection[] = [
-  // Master -> Others
-  { from: 'master', to: 'architect', label: '1. Specs', path: 'M 130 185 L 250 100' },
-  { from: 'master', to: 'conflict', label: '2. Check', path: 'M 130 200 L 250 200' },
-  { from: 'master', to: 'engineer', label: '3. Scope', path: 'M 130 215 L 250 300' },
-  // Core Engineering Flow
-  { from: 'architect', to: 'engineer', label: 'Inherits Specs', path: 'M 300 130 L 300 270' },
-  { from: 'conflict', to: 'engineer', label: 'Tree Clean', path: 'M 300 240 L 300 280' },
-  // Engineer -> Quality/Audits
-  { from: 'engineer', to: 'security', label: '4. Code Scan', path: 'M 350 305 L 470 170' },
-  { from: 'engineer', to: 'compliance', label: '5. Policy Audit', path: 'M 350 320 L 470 270' },
-  // Audits -> Master Completion
-  { from: 'security', to: 'master', label: 'Security Pass', path: 'M 470 145 C 380 120, 200 120, 120 160' },
-  { from: 'compliance', to: 'master', label: 'SOC2 Pass', path: 'M 470 280 C 380 340, 200 320, 120 230' }
+  { from: 'master', to: 'engineer', label: '1. Route Task', path: 'M 110 230 C 155 130, 195 85, 220 70' },
+  { from: 'engineer', to: 'proposer', label: '2. Risky Plan', path: 'M 250 100 L 250 220' },
+  { from: 'proposer', to: 'risk', label: '3. Risk Review', path: 'M 280 235 C 330 150, 365 80, 400 70' },
+  { from: 'proposer', to: 'compliance', label: '4. Policy Check', path: 'M 280 242 C 330 195, 365 165, 400 160' },
+  { from: 'proposer', to: 'security', label: '5. Security Scan', path: 'M 280 250 L 400 260' },
+  { from: 'proposer', to: 'test', label: '6. Test Readiness', path: 'M 280 258 C 330 315, 365 350, 400 360' },
+  { from: 'proposer', to: 'infrastructure', label: '7. Infra Impact', path: 'M 280 265 C 330 385, 365 445, 400 455' },
+  { from: 'risk', to: 'rollback', label: 'Findings', path: 'M 460 75 C 545 85, 600 155, 630 225' },
+  { from: 'security', to: 'rollback', label: 'Evidence', path: 'M 460 250 L 620 250' },
+  { from: 'infrastructure', to: 'rollback', label: 'Backup State', path: 'M 460 445 C 545 410, 600 340, 630 275' },
+  { from: 'rollback', to: 'master', label: '8. Final Packet', path: 'M 620 250 C 455 470, 210 420, 115 280' },
+  { from: 'master', to: 'rollback', label: 'Human Gate', path: 'M 115 245 C 250 25, 560 25, 635 215' }
 ];
 
 export function ArchitectureView() {
@@ -169,9 +221,9 @@ export function ArchitectureView() {
             </span>
           </div>
 
-          <div className="w-full max-w-[620px] aspect-[620/400]">
+          <div className="w-full max-w-[900px] aspect-[760/500]">
             <svg 
-              viewBox="0 0 620 400" 
+              viewBox="0 0 760 500" 
               className="w-full h-full select-none"
               style={{ overflow: 'visible' }}
             >
@@ -265,7 +317,7 @@ export function ArchitectureView() {
                     {/* Ring for active node */}
                     {isActive && (
                       <motion.circle
-                        r={34}
+                        r={44}
                         fill="none"
                         stroke="#000000"
                         strokeWidth={1.5}
@@ -276,7 +328,7 @@ export function ArchitectureView() {
 
                     {/* Node bubble */}
                     <circle
-                      r={26}
+                      r={34}
                       fill="#ffffff"
                       stroke={isActive ? '#000000' : 'rgba(0,0,0,0.1)'}
                       strokeWidth={isActive ? 2 : 1.5}
@@ -284,15 +336,16 @@ export function ArchitectureView() {
                     />
 
                     {/* Icon */}
-                    <g transform="translate(-11, -11)">
-                      <Icon className={`w-5.5 h-5.5 ${isActive ? 'text-black' : 'text-black/40'} transition-colors duration-300`} />
+                    <g transform="translate(-14, -14)">
+                      <Icon className={`w-7 h-7 ${isActive ? 'text-black' : 'text-black/40'} transition-colors duration-300`} />
                     </g>
 
                     {/* Label */}
                     <text
-                      y={42}
+                      x={node.labelX ?? 0}
+                      y={node.labelY ?? 56}
                       textAnchor="middle"
-                      className={`text-[11px] font-[600] tracking-tight ${isActive ? 'fill-black font-[700]' : 'fill-black/50'}`}
+                      className={`text-[13px] font-[650] tracking-tight ${isActive ? 'fill-black font-[750]' : 'fill-black/55'}`}
                     >
                       {node.name}
                     </text>
