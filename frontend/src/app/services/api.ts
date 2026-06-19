@@ -6,7 +6,7 @@
 const API_BASE =
   typeof window !== 'undefined' && window.location.port === '8000'
     ? '' // same origin when served by uvicorn
-    : 'http://localhost:8000';
+    : `http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:8000`;
 
 export const WS_URL = API_BASE.replace(/^http/, 'ws') + '/ws';
 

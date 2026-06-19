@@ -762,6 +762,7 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
     // ── Real backend call ──────────────────────────────────────────────────
     let backendFeatureId: string | undefined;
+    let backendOk = false;
 
     try {
       // 1. Create a feature record
@@ -781,12 +782,23 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           ? { ...f, logs: [...f.logs, `[${new Date().toLocaleTimeString()}] → Sent to Band room. Agents are collaborating...`] }
           : f
       ));
+      backendOk = true;
     } catch {
       // Backend offline — run local simulation
       toast.info('Backend offline — running local simulation.');
     }
 
-    // ── Local UI simulation (runs regardless, makes UI feel alive) ───────
+    // Real agents are driving the flow: clear the previous run's audit history
+    // so the dashboard shows only THIS workflow, then let the Band poller own
+    // stage progression + the final ALLOW/BLOCK decision. The local simulation
+    // below must NOT run here — it would race ahead and force a stale ALLOW,
+    // locking the panel before the real DECISION (e.g. BLOCK) arrives.
+    if (backendOk) {
+      setAuditLogs([newAudit]);
+      return;
+    }
+
+    // ── Local UI simulation (only used when the backend is offline) ───────
     const targetId = backendFeatureId ?? newId;
     let stage = 0;
     const stageDurations = [3000, 3000, 3500, 3000, 3500, 3000, 3500, 3000, 3000];
