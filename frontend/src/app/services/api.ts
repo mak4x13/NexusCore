@@ -1,12 +1,16 @@
 /**
  * NexusCore API Service
- * Connects to the FastAPI backend at http://localhost:8000
+ * Local default: http://localhost:8000
+ * Deployed frontend: set VITE_API_BASE_URL to the backend origin.
  */
 
+const configuredApiBase = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, '');
+
 const API_BASE =
-  typeof window !== 'undefined' && window.location.port === '8000'
+  configuredApiBase ||
+  (typeof window !== 'undefined' && window.location.port === '8000'
     ? '' // same origin when served by uvicorn
-    : `http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:8000`;
+    : 'http://localhost:8000');
 
 export const WS_URL = API_BASE.replace(/^http/, 'ws') + '/ws';
 

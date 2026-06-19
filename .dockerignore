@@ -1,0 +1,15 @@
+.git
+.venv
+venv
+env
+__pycache__
+*.pyc
+.env
+backend/.env
+agents/.env
+agents/agent_config.yaml
+agents/room.txt
+frontend/node_modules
+*.local.log
+*.local.err.log
+.DS_Store
