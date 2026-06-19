@@ -21,6 +21,8 @@ pinned: false
 
 Before an AI agent acts, NexusCore makes it answer.
 
+[Live Deployment](https://huggingface.co/spaces/mak4x13/NexusCore)
+
 ![Band](https://img.shields.io/badge/Band-Agent%20Collaboration-635BFF)
 ![FastAPI](https://img.shields.io/badge/FastAPI-Governance%20Backend-009688)
 ![React](https://img.shields.io/badge/React%20%2B%20Vite-Dashboard-646CFF)
