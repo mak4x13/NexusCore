@@ -77,16 +77,16 @@ def configured_agent_names() -> list[str]:
 
 def write_agent_config() -> bool:
     """Generate agent_config.yaml from env. Returns True if any agent is present."""
-    lines = []
+    config = {}
     for name, uuid_env, key_env in _AGENTS:
         uuid, key = os.environ.get(uuid_env), os.environ.get(key_env)
         if not uuid or not key:
             continue
-        lines.append(f'{name}:\n  agent_id: "{uuid}"\n  api_key: "{key}"\n')
-    if lines:
+        config[name] = {"agent_id": uuid, "api_key": key}
+    if config:
         with open(CONFIG_PATH, "w") as f:
-            f.write("\n".join(lines))
-    return bool(lines)
+            yaml.safe_dump(config, f, sort_keys=False)
+    return bool(config)
 
 
 def launch_agents(names: list[str]) -> list:
